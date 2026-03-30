@@ -1,0 +1,6 @@
+requests
+beautifulsoup4
+pydantic
+psycopg2
+pdfminer.six
+certifi
