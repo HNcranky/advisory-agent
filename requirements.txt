@@ -4,3 +4,7 @@ pydantic
 psycopg2
 pdfminer.six
 certifi
+langgraph
+langchain
+openai
+pydantic
