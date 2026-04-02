@@ -1,0 +1,15 @@
+food_technology                | Công nghệ Dệt May                             | thpt_score
+electronics_telecom            | Điện tử và Viễn thông                         | thpt_score
+EE-E18                         | K00K00: Bài thi đánh giá tư duy               | thpt_score
+BF-E19                         | K00K00: Bài thi đánh giá tư duy               | thpt_score
+CH-E11                         | K00K00: Bài thi đánh giá tư duy               | thpt_score
+BF-E12                         | K00K00: Bài thi đánh giá tư duy               | thpt_score
+CH2                            | K00K00: Bài thi đánh giá tư duy               | thpt_score
+CH1                            | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ED2                            | K00K00: Bài thi đánh giá tư duy               | thpt_score
+BF2                            | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ED3                            | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ED5                            | K00K00: Bài thi đánh giá tư duy               | thpt_score
+CH-E20                         | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EE-E8                          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+BF1                            | K00K00: Bài thi đánh giá tư duy               | thpt_score

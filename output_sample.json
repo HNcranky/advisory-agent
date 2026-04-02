@@ -1,0 +1,777 @@
+[
+  {
+    "school_id": "hust",
+    "school_name_canonical": "Đại học Bách khoa Hà Nội",
+    "admission_year": 2026,
+    "program_id": "food_technology",
+    "program_name_canonical": "Kỹ thuật Thực phẩm",
+    "program_name_raw": "Kỹ thuật thực phẩm (Chương trình tiên tiến)",
+    "admission_method": "thpt_score",
+    "admission_method_raw": "Đánh giá tư duy (TSA); Xét điểm thi TN THPT",
+    "subject_combinations": [
+      {
+        "code": "K00",
+        "subjects": [
+          "Bài thi đánh giá tư duy"
+        ],
+        "description": "Bài thi đánh giá tư duy (TSA)"
+      },
+      {
+        "code": "A00",
+        "subjects": [
+          "Toán",
+          "Vật lý",
+          "Hóa học"
+        ],
+        "description": "Toán, Lý, Hoá"
+      },
+      {
+        "code": "A01",
+        "subjects": [
+          "Toán",
+          "Vật lý",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Lý, Anh"
+      },
+      {
+        "code": "B00",
+        "subjects": [
+          "Toán",
+          "Hóa học",
+          "Sinh học"
+        ],
+        "description": "Toán, Hoá, Sinh"
+      },
+      {
+        "code": "D01",
+        "subjects": [
+          "Toán",
+          "Ngữ văn",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Văn, Anh"
+      },
+      {
+        "code": "D07",
+        "subjects": [
+          "Toán",
+          "Hóa học",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Hoá, Anh"
+      },
+      {
+        "code": "K01",
+        "subjects": [
+          "Toán",
+          "Lý/Hóa/Sinh/Tin",
+          "Ngữ văn"
+        ],
+        "description": "Toán, Lý/Hóa/Sinh/Tin, Văn"
+      },
+      {
+        "code": "D04",
+        "subjects": [
+          "Toán",
+          "Ngữ văn",
+          "Tiếng Trung"
+        ],
+        "description": "Toán, Văn, Trung"
+      },
+      {
+        "code": "E12",
+        "subjects": [],
+        "description": "Unknown combination E12"
+      },
+      {
+        "code": "E19",
+        "subjects": [],
+        "description": "Unknown combination E19"
+      },
+      {
+        "code": "E11",
+        "subjects": [],
+        "description": "Unknown combination E11"
+      },
+      {
+        "code": "E20",
+        "subjects": [],
+        "description": "Unknown combination E20"
+      },
+      {
+        "code": "E18",
+        "subjects": [],
+        "description": "Unknown combination E18"
+      },
+      {
+        "code": "E13",
+        "subjects": [],
+        "description": "Unknown combination E13"
+      },
+      {
+        "code": "E14",
+        "subjects": [],
+        "description": "Unknown combination E14"
+      },
+      {
+        "code": "E17",
+        "subjects": [],
+        "description": "Unknown combination E17"
+      },
+      {
+        "code": "E16",
+        "subjects": [],
+        "description": "Unknown combination E16"
+      },
+      {
+        "code": "E10",
+        "subjects": [],
+        "description": "Unknown combination E10"
+      },
+      {
+        "code": "E15",
+        "subjects": [],
+        "description": "Unknown combination E15"
+      },
+      {
+        "code": "E22",
+        "subjects": [],
+        "description": "Unknown combination E22"
+      },
+      {
+        "code": "B52",
+        "subjects": [],
+        "description": "Unknown combination B52"
+      },
+      {
+        "code": "C10",
+        "subjects": [],
+        "description": "Unknown combination C10"
+      }
+    ],
+    "quota": {
+      "value": 40,
+      "quota_type": "exact"
+    },
+    "conditions": {
+      "raw": "{'language': 'Tiếng Anh', 'faculty': 'Trường Vật liệu'}"
+    },
+    "source_url": "https://ts.hust.edu.vn/training-cate/nganh-dao-tao-dai-hoc",
+    "source_trust_level": 5,
+    "confidence_score": 0.85,
+    "normalized_at": "2026-04-02T10:00:59.409580"
+  },
+  {
+    "school_id": "hust",
+    "school_name_canonical": "Đại học Bách khoa Hà Nội",
+    "admission_year": 2026,
+    "program_id": "food_technology",
+    "program_name_canonical": "Kỹ thuật Thực phẩm",
+    "program_name_raw": "Kỹ thuật thực phẩm (Chương trình tiên tiến)",
+    "admission_method": "thpt_score",
+    "admission_method_raw": "Đánh giá tư duy (TSA); Xét điểm thi TN THPT",
+    "subject_combinations": [
+      {
+        "code": "K00",
+        "subjects": [
+          "Bài thi đánh giá tư duy"
+        ],
+        "description": "Bài thi đánh giá tư duy (TSA)"
+      },
+      {
+        "code": "A00",
+        "subjects": [
+          "Toán",
+          "Vật lý",
+          "Hóa học"
+        ],
+        "description": "Toán, Lý, Hoá"
+      },
+      {
+        "code": "A01",
+        "subjects": [
+          "Toán",
+          "Vật lý",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Lý, Anh"
+      },
+      {
+        "code": "B00",
+        "subjects": [
+          "Toán",
+          "Hóa học",
+          "Sinh học"
+        ],
+        "description": "Toán, Hoá, Sinh"
+      },
+      {
+        "code": "D01",
+        "subjects": [
+          "Toán",
+          "Ngữ văn",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Văn, Anh"
+      },
+      {
+        "code": "D07",
+        "subjects": [
+          "Toán",
+          "Hóa học",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Hoá, Anh"
+      },
+      {
+        "code": "K01",
+        "subjects": [
+          "Toán",
+          "Lý/Hóa/Sinh/Tin",
+          "Ngữ văn"
+        ],
+        "description": "Toán, Lý/Hóa/Sinh/Tin, Văn"
+      },
+      {
+        "code": "D04",
+        "subjects": [
+          "Toán",
+          "Ngữ văn",
+          "Tiếng Trung"
+        ],
+        "description": "Toán, Văn, Trung"
+      },
+      {
+        "code": "E12",
+        "subjects": [],
+        "description": "Unknown combination E12"
+      },
+      {
+        "code": "E19",
+        "subjects": [],
+        "description": "Unknown combination E19"
+      },
+      {
+        "code": "E11",
+        "subjects": [],
+        "description": "Unknown combination E11"
+      },
+      {
+        "code": "E20",
+        "subjects": [],
+        "description": "Unknown combination E20"
+      },
+      {
+        "code": "E18",
+        "subjects": [],
+        "description": "Unknown combination E18"
+      },
+      {
+        "code": "E13",
+        "subjects": [],
+        "description": "Unknown combination E13"
+      },
+      {
+        "code": "E14",
+        "subjects": [],
+        "description": "Unknown combination E14"
+      },
+      {
+        "code": "E17",
+        "subjects": [],
+        "description": "Unknown combination E17"
+      },
+      {
+        "code": "E16",
+        "subjects": [],
+        "description": "Unknown combination E16"
+      },
+      {
+        "code": "E10",
+        "subjects": [],
+        "description": "Unknown combination E10"
+      },
+      {
+        "code": "E15",
+        "subjects": [],
+        "description": "Unknown combination E15"
+      },
+      {
+        "code": "E22",
+        "subjects": [],
+        "description": "Unknown combination E22"
+      }
+    ],
+    "quota": {
+      "value": 40,
+      "quota_type": "exact"
+    },
+    "conditions": {
+      "raw": "{'language': 'Tiếng Anh', 'faculty': 'Trường Vật liệu'}"
+    },
+    "source_url": "https://ts.hust.edu.vn/training-cate/nganh-dao-tao-dai-hoc",
+    "source_trust_level": 5,
+    "confidence_score": 0.85,
+    "normalized_at": "2026-04-02T10:00:59.409580"
+  },
+  {
+    "school_id": "hust",
+    "school_name_canonical": "Đại học Bách khoa Hà Nội",
+    "admission_year": 2026,
+    "program_id": "food_technology",
+    "program_name_canonical": "Kỹ thuật Thực phẩm",
+    "program_name_raw": "Kỹ thuật thực phẩm (Chương trình tiên tiến)",
+    "admission_method": "thpt_score",
+    "admission_method_raw": "Đánh giá tư duy (TSA); Xét điểm thi TN THPT",
+    "subject_combinations": [
+      {
+        "code": "K00",
+        "subjects": [
+          "Bài thi đánh giá tư duy"
+        ],
+        "description": "Bài thi đánh giá tư duy (TSA)"
+      },
+      {
+        "code": "A00",
+        "subjects": [
+          "Toán",
+          "Vật lý",
+          "Hóa học"
+        ],
+        "description": "Toán, Lý, Hoá"
+      },
+      {
+        "code": "A01",
+        "subjects": [
+          "Toán",
+          "Vật lý",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Lý, Anh"
+      },
+      {
+        "code": "B00",
+        "subjects": [
+          "Toán",
+          "Hóa học",
+          "Sinh học"
+        ],
+        "description": "Toán, Hoá, Sinh"
+      },
+      {
+        "code": "D01",
+        "subjects": [
+          "Toán",
+          "Ngữ văn",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Văn, Anh"
+      },
+      {
+        "code": "D07",
+        "subjects": [
+          "Toán",
+          "Hóa học",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Hoá, Anh"
+      },
+      {
+        "code": "K01",
+        "subjects": [
+          "Toán",
+          "Lý/Hóa/Sinh/Tin",
+          "Ngữ văn"
+        ],
+        "description": "Toán, Lý/Hóa/Sinh/Tin, Văn"
+      },
+      {
+        "code": "D04",
+        "subjects": [
+          "Toán",
+          "Ngữ văn",
+          "Tiếng Trung"
+        ],
+        "description": "Toán, Văn, Trung"
+      },
+      {
+        "code": "E12",
+        "subjects": [],
+        "description": "Unknown combination E12"
+      },
+      {
+        "code": "E19",
+        "subjects": [],
+        "description": "Unknown combination E19"
+      },
+      {
+        "code": "E11",
+        "subjects": [],
+        "description": "Unknown combination E11"
+      },
+      {
+        "code": "E20",
+        "subjects": [],
+        "description": "Unknown combination E20"
+      },
+      {
+        "code": "E18",
+        "subjects": [],
+        "description": "Unknown combination E18"
+      },
+      {
+        "code": "E13",
+        "subjects": [],
+        "description": "Unknown combination E13"
+      },
+      {
+        "code": "E14",
+        "subjects": [],
+        "description": "Unknown combination E14"
+      },
+      {
+        "code": "E17",
+        "subjects": [],
+        "description": "Unknown combination E17"
+      },
+      {
+        "code": "E16",
+        "subjects": [],
+        "description": "Unknown combination E16"
+      },
+      {
+        "code": "E10",
+        "subjects": [],
+        "description": "Unknown combination E10"
+      },
+      {
+        "code": "E15",
+        "subjects": [],
+        "description": "Unknown combination E15"
+      },
+      {
+        "code": "E22",
+        "subjects": [],
+        "description": "Unknown combination E22"
+      }
+    ],
+    "quota": {
+      "value": 40,
+      "quota_type": "exact"
+    },
+    "conditions": {
+      "raw": "{'language': 'Tiếng Anh', 'faculty': 'Trường Vật liệu'}"
+    },
+    "source_url": "https://ts.hust.edu.vn/training-cate/nganh-dao-tao-dai-hoc",
+    "source_trust_level": 5,
+    "confidence_score": 0.85,
+    "normalized_at": "2026-04-02T10:00:59.409580"
+  },
+  {
+    "school_id": "hust",
+    "school_name_canonical": "Đại học Bách khoa Hà Nội",
+    "admission_year": 2026,
+    "program_id": "food_technology",
+    "program_name_canonical": "Kỹ thuật Thực phẩm",
+    "program_name_raw": "Kỹ thuật thực phẩm (Chương trình tiên tiến)",
+    "admission_method": "thpt_score",
+    "admission_method_raw": "Đánh giá tư duy (TSA); Xét điểm thi TN THPT",
+    "subject_combinations": [
+      {
+        "code": "E12",
+        "subjects": [],
+        "description": "Unknown combination E12"
+      },
+      {
+        "code": "K00",
+        "subjects": [
+          "Bài thi đánh giá tư duy"
+        ],
+        "description": "Bài thi đánh giá tư duy (TSA)"
+      },
+      {
+        "code": "A00",
+        "subjects": [
+          "Toán",
+          "Vật lý",
+          "Hóa học"
+        ],
+        "description": "Toán, Lý, Hoá"
+      },
+      {
+        "code": "B00",
+        "subjects": [
+          "Toán",
+          "Hóa học",
+          "Sinh học"
+        ],
+        "description": "Toán, Hoá, Sinh"
+      },
+      {
+        "code": "D07",
+        "subjects": [
+          "Toán",
+          "Hóa học",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Hoá, Anh"
+      },
+      {
+        "code": "K01",
+        "subjects": [
+          "Toán",
+          "Lý/Hóa/Sinh/Tin",
+          "Ngữ văn"
+        ],
+        "description": "Toán, Lý/Hóa/Sinh/Tin, Văn"
+      },
+      {
+        "code": "E19",
+        "subjects": [],
+        "description": "Unknown combination E19"
+      },
+      {
+        "code": "E11",
+        "subjects": [],
+        "description": "Unknown combination E11"
+      },
+      {
+        "code": "E20",
+        "subjects": [],
+        "description": "Unknown combination E20"
+      },
+      {
+        "code": "A01",
+        "subjects": [
+          "Toán",
+          "Vật lý",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Lý, Anh"
+      },
+      {
+        "code": "D01",
+        "subjects": [
+          "Toán",
+          "Ngữ văn",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Văn, Anh"
+      },
+      {
+        "code": "E18",
+        "subjects": [],
+        "description": "Unknown combination E18"
+      },
+      {
+        "code": "E13",
+        "subjects": [],
+        "description": "Unknown combination E13"
+      },
+      {
+        "code": "E14",
+        "subjects": [],
+        "description": "Unknown combination E14"
+      },
+      {
+        "code": "E17",
+        "subjects": [],
+        "description": "Unknown combination E17"
+      },
+      {
+        "code": "E16",
+        "subjects": [],
+        "description": "Unknown combination E16"
+      },
+      {
+        "code": "D04",
+        "subjects": [
+          "Toán",
+          "Ngữ văn",
+          "Tiếng Trung"
+        ],
+        "description": "Toán, Văn, Trung"
+      },
+      {
+        "code": "E10",
+        "subjects": [],
+        "description": "Unknown combination E10"
+      },
+      {
+        "code": "E15",
+        "subjects": [],
+        "description": "Unknown combination E15"
+      },
+      {
+        "code": "E22",
+        "subjects": [],
+        "description": "Unknown combination E22"
+      }
+    ],
+    "quota": {
+      "value": 40,
+      "quota_type": "exact"
+    },
+    "conditions": {
+      "raw": "{'language': 'Tiếng Anh', 'faculty': 'Trường Vật liệu'}"
+    },
+    "source_url": "https://ts.hust.edu.vn/training-cate/nganh-dao-tao-dai-hoc",
+    "source_trust_level": 5,
+    "confidence_score": 0.85,
+    "normalized_at": "2026-04-02T10:00:59.409580"
+  },
+  {
+    "school_id": "hust",
+    "school_name_canonical": "Đại học Bách khoa Hà Nội",
+    "admission_year": 2026,
+    "program_id": "food_technology",
+    "program_name_canonical": "Kỹ thuật Thực phẩm",
+    "program_name_raw": "Kỹ thuật thực phẩm (Chương trình tiên tiến)",
+    "admission_method": "thpt_score",
+    "admission_method_raw": "Đánh giá tư duy (TSA); Xét điểm thi TN THPT",
+    "subject_combinations": [
+      {
+        "code": "E12",
+        "subjects": [],
+        "description": "Unknown combination E12"
+      },
+      {
+        "code": "K00",
+        "subjects": [
+          "Bài thi đánh giá tư duy"
+        ],
+        "description": "Bài thi đánh giá tư duy (TSA)"
+      },
+      {
+        "code": "A00",
+        "subjects": [
+          "Toán",
+          "Vật lý",
+          "Hóa học"
+        ],
+        "description": "Toán, Lý, Hoá"
+      },
+      {
+        "code": "B00",
+        "subjects": [
+          "Toán",
+          "Hóa học",
+          "Sinh học"
+        ],
+        "description": "Toán, Hoá, Sinh"
+      },
+      {
+        "code": "D07",
+        "subjects": [
+          "Toán",
+          "Hóa học",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Hoá, Anh"
+      },
+      {
+        "code": "K01",
+        "subjects": [
+          "Toán",
+          "Lý/Hóa/Sinh/Tin",
+          "Ngữ văn"
+        ],
+        "description": "Toán, Lý/Hóa/Sinh/Tin, Văn"
+      },
+      {
+        "code": "E19",
+        "subjects": [],
+        "description": "Unknown combination E19"
+      },
+      {
+        "code": "E11",
+        "subjects": [],
+        "description": "Unknown combination E11"
+      },
+      {
+        "code": "E20",
+        "subjects": [],
+        "description": "Unknown combination E20"
+      },
+      {
+        "code": "A01",
+        "subjects": [
+          "Toán",
+          "Vật lý",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Lý, Anh"
+      },
+      {
+        "code": "D01",
+        "subjects": [
+          "Toán",
+          "Ngữ văn",
+          "Tiếng Anh"
+        ],
+        "description": "Toán, Văn, Anh"
+      },
+      {
+        "code": "E18",
+        "subjects": [],
+        "description": "Unknown combination E18"
+      },
+      {
+        "code": "E13",
+        "subjects": [],
+        "description": "Unknown combination E13"
+      },
+      {
+        "code": "E14",
+        "subjects": [],
+        "description": "Unknown combination E14"
+      },
+      {
+        "code": "E17",
+        "subjects": [],
+        "description": "Unknown combination E17"
+      },
+      {
+        "code": "E16",
+        "subjects": [],
+        "description": "Unknown combination E16"
+      },
+      {
+        "code": "D04",
+        "subjects": [
+          "Toán",
+          "Ngữ văn",
+          "Tiếng Trung"
+        ],
+        "description": "Toán, Văn, Trung"
+      },
+      {
+        "code": "E10",
+        "subjects": [],
+        "description": "Unknown combination E10"
+      },
+      {
+        "code": "E15",
+        "subjects": [],
+        "description": "Unknown combination E15"
+      },
+      {
+        "code": "E22",
+        "subjects": [],
+        "description": "Unknown combination E22"
+      }
+    ],
+    "quota": {
+      "value": 40,
+      "quota_type": "exact"
+    },
+    "conditions": {
+      "raw": "{'language': 'Tiếng Anh', 'faculty': 'Trường Vật liệu'}"
+    },
+    "source_url": "https://ts.hust.edu.vn/training-cate/nganh-dao-tao-dai-hoc",
+    "source_trust_level": 5,
+    "confidence_score": 0.85,
+    "normalized_at": "2026-04-02T10:00:59.409580"
+  }
+]

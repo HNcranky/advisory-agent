@@ -1,0 +1,91 @@
+HUST Admission Programs in PostgreSQL: 35 records
+========================================================================================================================
+
+  1. [textile_technology] Công nghệ Dệt May
+
+  2. [education_technology] Công nghệ Giáo dục
+     Raw: Công nghệ giáo dục
+
+  3. [electronics_telecom] Kỹ thuật Điện tử - Viễn thông
+     Raw: Điện tử và Viễn thông
+
+  4. [information_systems] Hệ thống Thông tin
+     Raw: Hệ thống thông tin quản lý
+
+  5. [chemical_engineering] Kỹ thuật Hóa học
+     Raw: Hóa học
+
+  6. [accounting] Kế toán
+     Raw: Kế toán (Chương trình tiên tiến)
+
+  7. [data_science] Khoa học Dữ liệu và Trí tuệ Nhân tạo
+
+  8. [computer_science] Khoa học Máy tính
+     Raw: Khoa học máy tính - ĐH Troy (Hoa Kỳ)
+
+  9. [mechatronics] Kỹ thuật Cơ điện tử
+
+ 10. [mechanical_engineering] Kỹ thuật Cơ khí
+     Raw: Kỹ thuật Cơ khí động lực
+
+ 11. [electrical_engineering] Kỹ thuật Điện
+     Raw: Kỹ thuật Điện tử - Viễn thông (Chương trình tiên tiến)
+
+ 12. [control_automation] Kỹ thuật Điều khiển - Tự động hóa
+
+ 13. [aerospace_engineering] Kỹ thuật Hàng không
+
+ 14. [nuclear_engineering] Kỹ thuật Hạt nhân
+     Raw: Kỹ thuật hạt nhân
+
+ 15. [heat_engineering] Kỹ thuật Nhiệt
+
+ 16. [automotive_engineering] Kỹ thuật Ô tô
+
+ 17. [bioengineering] Kỹ thuật Sinh học
+
+ 18. [food_technology] Kỹ thuật Thực phẩm
+
+ 19. [materials_science] Khoa học và Kỹ thuật Vật liệu
+     Raw: Kỹ thuật Vật liệu
+
+ 20. [biomedical_engineering] Kỹ thuật Y sinh
+
+ 21. [industrial_management] Quản lý Công nghiệp
+     Raw: Quản lý công nghiệp
+
+ 22. [education_management] Quản lý Giáo dục
+     Raw: Quản lý giáo dục
+
+ 23. [environmental_engineering] Kỹ thuật Môi trường
+     Raw: Quản lý Tài nguyên và Môi trường
+
+ 24. [business_administration] Quản trị Kinh doanh
+     Raw: Quản trị kinh doanh
+
+ 25. [printing_technology] Kỹ thuật In
+     Raw: Quản trị kinh doanh - ĐH Troy (Hoa Kỳ)
+
+ 26. [finance_banking] Tài chính - Ngân hàng
+
+ 27. [industrial_psychology] Tâm lý học Công nghiệp và Tổ chức
+     Raw: Tâm lý học công nghiệp và tổ chức
+
+ 28. [english_professional] Tiếng Anh Chuyên nghiệp Quốc tế
+
+ 29. [english_science_tech] Tiếng Anh Khoa học Kỹ thuật và Công nghệ
+
+ 30. [korean_science_tech] Tiếng Hàn Khoa học và Công nghệ
+
+ 31. [chinese_science_tech] Tiếng Trung Khoa học và Công nghệ
+
+ 32. [math_informatics] Toán - Tin
+
+ 33. [ict] Công nghệ Thông tin - Truyền thông
+     Raw: Truyền thông số và Kỹ thuật đa phương tiện (Chương trình tiên tiến)
+
+ 34. [physics] Vật lý Kỹ thuật
+     Raw: Vật lý kỹ thuật
+
+ 35. [medical_physics] Vật lý Y khoa
+

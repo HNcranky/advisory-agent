@@ -1,0 +1,52 @@
+"""Final re-run: clean DB, re-run pipeline with updated dictionary, import."""
+import sys, json
+sys.path.insert(0, '.')
+
+# Reset mapper cache
+import ingestion.normalization.program_mapper as pm
+pm._PROGRAMS_DICT = None
+
+from ingestion.pipeline.ingestion_pipeline import IngestionPipeline
+from ingestion.storage.db_writer import save_canonical_records
+from ingestion.storage.db_connection import get_cursor
+
+# Clear all old data
+with get_cursor() as cur:
+    cur.execute('DELETE FROM canonical_admission_records')
+    cur.execute('DELETE FROM extracted_facts')
+    print('Cleared old data')
+
+# Run pipeline
+pipeline = IngestionPipeline()
+source = pipeline.registry.get_source('hust_program_listing')
+records = pipeline.run_for_source(source)
+print(f'Pipeline produced {len(records)} records')
+
+# Save to DB
+count = save_canonical_records(records)
+print(f'Saved {count} records to DB')
+
+# Verify
+with get_cursor(commit=False) as cur:
+    cur.execute('SELECT COUNT(*) FROM canonical_admission_records')
+    total = cur.fetchone()[0]
+    print(f'\nDB canonical records: {total}')
+    
+    cur.execute("""
+        SELECT program_id, program_name_canonical, program_name_raw, admission_method
+        FROM canonical_admission_records
+        ORDER BY program_name_raw
+    """)
+    
+    rows = cur.fetchall()
+    with open('db_final_results.txt', 'w', encoding='utf-8') as f:
+        f.write(f'Total: {total} clean records\n\n')
+        f.write(f'{"Program ID":30s} | {"Canonical":40s} | {"Raw Name":45s} | {"Method"}\n')
+        f.write('-' * 140 + '\n')
+        for row in rows:
+            pid = (row[0] or 'N/A')[:29]
+            canonical = (row[1] or 'N/A')[:39]
+            raw = (row[2] or 'N/A')[:44]
+            method = (row[3] or 'N/A')
+            f.write(f'{pid:30s} | {canonical:40s} | {raw:45s} | {method}\n')
+    print('Wrote db_final_results.txt')
