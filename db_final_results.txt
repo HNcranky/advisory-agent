@@ -1,0 +1,113 @@
+Total: 103 clean records
+
+Program ID                     | Canonical                                | Raw Name                                      | Method
+--------------------------------------------------------------------------------------------------------------------------------------------
+textile_technology             | Công nghệ Dệt May                        | Công nghệ Dệt May                             | thpt_score
+education_technology           | Công nghệ Giáo dục                       | Công nghệ giáo dục                            | thpt_score
+FL3                            | D01D01:
+                                 | D01D01:
+                                      | thpt_score
+FL4                            | D01D01:
+                                 | D01D01:
+                                      | thpt_score
+FL1                            | D01D01:
+                                 | D01D01:
+                                      | thpt_score
+electronics_telecom            | Kỹ thuật Điện tử - Viễn thông            | Điện tử và Viễn thông                         | thpt_score
+information_systems            | Hệ thống Thông tin                       | Hệ thống thông tin quản lý                    | thpt_score
+chemical_engineering           | Kỹ thuật Hóa học                         | Hóa học                                       | thpt_score
+ED2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ED3                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ED5                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EE-E18                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EE-E8                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EE-EP                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EE1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EE2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EM-E13                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EM-E14                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EM-E17                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EM1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+TX1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+BF-E19                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+BF1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+BF2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+CH-E11                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+CH-E20                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+CH1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+CH2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+IT-E6                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+IT-E7                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+IT-EP                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+IT1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+IT2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ME-E1                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ME-GU                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ME-LUH                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ME-NUT                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ME1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ME2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+MI-E22                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+MI1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+MI2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+MS-E3                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+MS1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+MS2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+MS3                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+MS5                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+PH1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+PH2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+PH3                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+TE-E2                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+TE-EP                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+TE1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+TE2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+TE3                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+TROY-BA                        | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+TROY-IT                        | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+BF-E12                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EM2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EM3                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EM5                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ET-E16                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ET-E4                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ET-E5                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ET-E9                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ET-LUH                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ET1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+ET2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EV1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+EV2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+HE1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+IT-E10                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+IT-E15                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | thpt_score
+accounting                     | Kế toán                                  | Kế toán (Chương trình tiên tiến)              | thpt_score
+data_science                   | Khoa học Dữ liệu và Trí tuệ Nhân tạo     | Khoa học Dữ liệu và Trí tuệ Nhân tạo          | thpt_score
+computer_science               | Khoa học Máy tính                        | Khoa học máy tính - ĐH Troy (Hoa Kỳ)          | thpt_score
+mechatronics                   | Kỹ thuật Cơ điện tử                      | Kỹ thuật Cơ điện tử                           | thpt_score
+mechanical_engineering         | Kỹ thuật Cơ khí                          | Kỹ thuật Cơ khí động lực                      | thpt_score
+electrical_engineering         | Kỹ thuật Điện                            | Kỹ thuật Điện tử - Viễn thông (Chương trình   | thpt_score
+control_automation             | Kỹ thuật Điều khiển - Tự động hóa        | Kỹ thuật Điều khiển - Tự động hóa             | thpt_score
+aerospace_engineering          | Kỹ thuật Hàng không                      | Kỹ thuật Hàng không                           | thpt_score
+nuclear_engineering            | Kỹ thuật Hạt nhân                        | Kỹ thuật hạt nhân                             | thpt_score
+heat_engineering               | Kỹ thuật Nhiệt                           | Kỹ thuật Nhiệt                                | thpt_score
+automotive_engineering         | Kỹ thuật Ô tô                            | Kỹ thuật Ô tô                                 | thpt_score
+bioengineering                 | Kỹ thuật Sinh học                        | Kỹ thuật Sinh học                             | thpt_score
+food_technology                | Kỹ thuật Thực phẩm                       | Kỹ thuật Thực phẩm                            | thpt_score
+materials_science              | Khoa học và Kỹ thuật Vật liệu            | Kỹ thuật Vật liệu                             | thpt_score
+biomedical_engineering         | Kỹ thuật Y sinh                          | Kỹ thuật Y sinh                               | thpt_score
+industrial_management          | Quản lý Công nghiệp                      | Quản lý công nghiệp                           | thpt_score
+education_management           | Quản lý Giáo dục                         | Quản lý giáo dục                              | thpt_score
+environmental_engineering      | Kỹ thuật Môi trường                      | Quản lý Tài nguyên và Môi trường              | thpt_score
+business_administration        | Quản trị Kinh doanh                      | Quản trị kinh doanh                           | thpt_score
+printing_technology            | Kỹ thuật In                              | Quản trị kinh doanh - ĐH Troy (Hoa Kỳ)        | thpt_score
+finance_banking                | Tài chính - Ngân hàng                    | Tài chính - Ngân hàng                         | thpt_score
+industrial_psychology          | Tâm lý học Công nghiệp và Tổ chức        | Tâm lý học công nghiệp và tổ chức             | thpt_score
+english_professional           | Tiếng Anh Chuyên nghiệp Quốc tế          | Tiếng Anh Chuyên nghiệp Quốc tế               | thpt_score
+english_science_tech           | Tiếng Anh Khoa học Kỹ thuật và Công ngh  | Tiếng Anh Khoa học Kỹ thuật và Công nghệ      | thpt_score
+korean_science_tech            | Tiếng Hàn Khoa học và Công nghệ          | Tiếng Hàn Khoa học và Công nghệ               | thpt_score
+chinese_science_tech           | Tiếng Trung Khoa học và Công nghệ        | Tiếng Trung Khoa học và Công nghệ             | thpt_score
+math_informatics               | Toán - Tin                               | Toán - Tin                                    | thpt_score
+ict                            | Công nghệ Thông tin - Truyền thông       | Truyền thông số và Kỹ thuật đa phương tiện (  | thpt_score
+physics                        | Vật lý Kỹ thuật                          | Vật lý kỹ thuật                               | thpt_score
+medical_physics                | Vật lý Y khoa                            | Vật lý Y khoa                                 | thpt_score

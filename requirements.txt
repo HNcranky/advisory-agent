@@ -1,10 +1,26 @@
+# Core
 requests
 beautifulsoup4
 pydantic
-psycopg2
-pdfminer.six
 certifi
+
+# Database
+psycopg2-binary
+
+# PDF
+pdfminer.six
+
+# LLM & Agents
 langgraph
 langchain
-openai
-pydantic
+google-generativeai
+
+# Normalization
+thefuzz[speedup]
+python-dateutil
+
+# Browser rendering (Phase 5)
+# playwright
+
+# Retry logic
+tenacity

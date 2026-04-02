@@ -1,0 +1,27 @@
+Total records: 281
+Unique programs: 86
+
+[1] Kỹ thuật thực phẩm (Chương trình tiên tiến) (food_technology)
+    Combos: ['K00', 'A00', 'A01', 'B00', 'D01', 'D07', 'K01', 'D04', 'B52', 'C10']
+    Quota: {'value': 40, 'min_value': None, 'max_value': None, 'quota_type': 'exact'}
+    Method: thpt_score
+
+[2] Kỹ thuật thực phẩm (Chương trình tiên tiến) (food_technology)
+    Combos: ['K00', 'A00', 'A01', 'B00', 'D01', 'D07', 'K01', 'D04']
+    Quota: {'value': 40, 'min_value': None, 'max_value': None, 'quota_type': 'exact'}
+    Method: thpt_score
+
+[3] Kỹ thuật thực phẩm (Chương trình tiên tiến) (food_technology)
+    Combos: ['K00', 'A00', 'A01', 'B00', 'D01', 'D07', 'K01', 'D04']
+    Quota: {'value': 40, 'min_value': None, 'max_value': None, 'quota_type': 'exact'}
+    Method: thpt_score
+
+[4] Kỹ thuật thực phẩm (Chương trình tiên tiến) (food_technology)
+    Combos: ['K00', 'A00', 'B00', 'D07', 'K01', 'A01', 'D01', 'D04']
+    Quota: {'value': 40, 'min_value': None, 'max_value': None, 'quota_type': 'exact'}
+    Method: thpt_score
+
+[5] Kỹ thuật thực phẩm (Chương trình tiên tiến) (food_technology)
+    Combos: ['K00', 'A00', 'B00', 'D07', 'K01', 'A01', 'D01', 'D04']
+    Quota: {'value': 40, 'min_value': None, 'max_value': None, 'quota_type': 'exact'}
+    Method: thpt_score
