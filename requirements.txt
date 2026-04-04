@@ -24,3 +24,4 @@ python-dateutil
 
 # Retry logic
 tenacity
+pdfminer
