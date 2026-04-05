@@ -3,9 +3,12 @@
 Entry point for the ingestion pipeline.
 
 Usage:
-    python -m ingestion.main                    # Run for HUST programs
-    python -m ingestion.main --school hust      # Run for all HUST sources
-    python -m ingestion.main --url <url>        # Run for a single URL
+    python -m ingestion.main                      # List available schools
+    python -m ingestion.main --school hust        # Run for all HUST sources
+    python -m ingestion.main --source <id>        # Run for a specific source
+    python -m ingestion.main --url <url>          # Run for a single URL
+    python -m ingestion.main --all                # Run for all active schools
+    python -m ingestion.main --list-schools       # List schools and sources
 """
 
 import sys
@@ -37,7 +40,7 @@ def main():
     parser.add_argument(
         "--school",
         type=str,
-        help="School ID to crawl all sources (e.g. 'hust')",
+        help="School ID to crawl all sources (e.g. 'hust', 'neu', 'uet', 'ftu')",
     )
     parser.add_argument(
         "--source",
@@ -48,6 +51,16 @@ def main():
         "--url",
         type=str,
         help="Single URL to process",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Run for all active sources across all schools",
+    )
+    parser.add_argument(
+        "--list-schools",
+        action="store_true",
+        help="List all registered schools and their sources",
     )
     parser.add_argument(
         "--output",
@@ -68,6 +81,11 @@ def main():
 
     pipeline = IngestionPipeline()
 
+    # ─── List schools ───────────────────────────────────────────
+    if args.list_schools:
+        _print_schools(pipeline)
+        return
+
     records = []
 
     if args.url:
@@ -87,15 +105,18 @@ def main():
         logger.info(f"Processing school: {args.school}")
         records = pipeline.run_for_school(args.school)
 
+    elif args.all:
+        logger.info("Processing ALL active sources")
+        records = pipeline.run_all_schools()
+
     else:
-        # Default: HUST program listing
-        logger.info("Default: Processing HUST program listing")
-        source = pipeline.registry.get_source("hust_program_listing")
-        if source:
-            records = pipeline.run_for_source(source)
-        else:
-            logger.error("HUST program listing source not found in registry")
-            sys.exit(1)
+        # Default: show available schools
+        print("\n📚 Admission Data Ingestion Pipeline")
+        print("=" * 50)
+        print("\nNo action specified. Available options:\n")
+        _print_schools(pipeline)
+        print("\nRun with --help for full usage.\n")
+        return
 
     # ─── Output results ─────────────────────────────────────────
     logger.info(f"\n{'='*60}")
@@ -139,6 +160,31 @@ def main():
     else:
         # Print JSON to stdout
         print(json.dumps(output_data, ensure_ascii=False, indent=2))
+
+
+def _print_schools(pipeline: IngestionPipeline):
+    """Print table of available schools and sources."""
+    schools = pipeline.list_schools()
+
+    if not schools:
+        print("  No schools registered.")
+        return
+
+    print(f"\n  {'School ID':<12} {'School Name':<35} {'Active':>7} {'Total':>7}")
+    print(f"  {'─'*12} {'─'*35} {'─'*7} {'─'*7}")
+
+    for s in schools:
+        status = "✅" if s["active_sources"] > 0 else "⏸️"
+        print(
+            f"  {s['school_id']:<12} {s['school_name']:<35} "
+            f"{s['active_sources']:>5}   {s['total_sources']:>5}  {status}"
+        )
+
+    print(f"\n  Total: {len(schools)} schools registered")
+    print(f"\n  Usage examples:")
+    print(f"    python -m ingestion.main --school hust")
+    print(f"    python -m ingestion.main --source hust_program_listing")
+    print(f"    python -m ingestion.main --all")
 
 
 if __name__ == "__main__":

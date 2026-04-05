@@ -144,5 +144,164 @@
     "metadata": {
       "description": "Học phí đại học chính quy"
     }
+  },
+
+  {
+    "source_id": "neu_admission_homepage",
+    "school_id": "neu",
+    "school_name": "Đại học Kinh tế Quốc dân",
+    "source_type": "admission_homepage",
+    "root_url": "https://tuyensinh.neu.edu.vn/",
+    "trust_level": 5,
+    "priority": 1,
+    "fetch_strategy": "http",
+    "parser_profile": "default",
+    "update_frequency_hint": "weekly",
+    "is_official": true,
+    "active": false,
+    "metadata": {
+      "school_code": "KHA",
+      "alias": ["NEU", "Kinh tế Quốc dân", "KTQD", "ĐH KTQD"]
+    }
+  },
+  {
+    "source_id": "neu_program_listing",
+    "school_id": "neu",
+    "school_name": "Đại học Kinh tế Quốc dân",
+    "source_type": "program_listing",
+    "root_url": "https://tuyensinh.neu.edu.vn/nganh-tuyen-sinh",
+    "trust_level": 5,
+    "priority": 1,
+    "fetch_strategy": "http",
+    "parser_profile": "default",
+    "update_frequency_hint": "yearly",
+    "is_official": true,
+    "active": false,
+    "metadata": {
+      "description": "Danh sách ngành tuyển sinh đại học NEU"
+    }
+  },
+  {
+    "source_id": "neu_admission_info",
+    "school_id": "neu",
+    "school_name": "Đại học Kinh tế Quốc dân",
+    "source_type": "news_listing",
+    "root_url": "https://tuyensinh.neu.edu.vn/thong-tin-tuyen-sinh",
+    "trust_level": 5,
+    "priority": 2,
+    "fetch_strategy": "http",
+    "parser_profile": "default",
+    "update_frequency_hint": "monthly",
+    "is_official": true,
+    "active": false,
+    "metadata": {
+      "description": "Thông tin tuyển sinh đại học chính quy NEU"
+    }
+  },
+
+  {
+    "source_id": "uet_admission_homepage",
+    "school_id": "uet",
+    "school_name": "Đại học Công nghệ - ĐHQGHN",
+    "source_type": "admission_homepage",
+    "root_url": "https://uet.vnu.edu.vn/tuyen-sinh/",
+    "trust_level": 5,
+    "priority": 1,
+    "fetch_strategy": "http",
+    "parser_profile": "default",
+    "update_frequency_hint": "weekly",
+    "is_official": true,
+    "active": false,
+    "metadata": {
+      "school_code": "QHI",
+      "alias": ["UET", "ĐH Công nghệ", "ĐHCN", "UET VNU"]
+    }
+  },
+  {
+    "source_id": "uet_program_listing",
+    "school_id": "uet",
+    "school_name": "Đại học Công nghệ - ĐHQGHN",
+    "source_type": "program_listing",
+    "root_url": "https://uet.vnu.edu.vn/tuyen-sinh/nganh-dao-tao/",
+    "trust_level": 5,
+    "priority": 1,
+    "fetch_strategy": "http",
+    "parser_profile": "default",
+    "update_frequency_hint": "yearly",
+    "is_official": true,
+    "active": false,
+    "metadata": {
+      "description": "Danh sách ngành đào tạo đại học UET"
+    }
+  },
+  {
+    "source_id": "uet_admission_info",
+    "school_id": "uet",
+    "school_name": "Đại học Công nghệ - ĐHQGHN",
+    "source_type": "news_listing",
+    "root_url": "https://uet.vnu.edu.vn/tuyen-sinh/thong-tin-tuyen-sinh/",
+    "trust_level": 5,
+    "priority": 2,
+    "fetch_strategy": "http",
+    "parser_profile": "default",
+    "update_frequency_hint": "monthly",
+    "is_official": true,
+    "active": false,
+    "metadata": {
+      "description": "Thông tin tuyển sinh UET"
+    }
+  },
+
+  {
+    "source_id": "ftu_admission_homepage",
+    "school_id": "ftu",
+    "school_name": "Đại học Ngoại thương",
+    "source_type": "admission_homepage",
+    "root_url": "https://tuyensinh.ftu.edu.vn/",
+    "trust_level": 5,
+    "priority": 1,
+    "fetch_strategy": "http",
+    "parser_profile": "default",
+    "update_frequency_hint": "weekly",
+    "is_official": true,
+    "active": false,
+    "metadata": {
+      "school_code": "NTH",
+      "alias": ["FTU", "Ngoại thương", "ĐH Ngoại thương", "ĐHNT"]
+    }
+  },
+  {
+    "source_id": "ftu_program_listing",
+    "school_id": "ftu",
+    "school_name": "Đại học Ngoại thương",
+    "source_type": "program_listing",
+    "root_url": "https://tuyensinh.ftu.edu.vn/nganh-tuyen-sinh",
+    "trust_level": 5,
+    "priority": 1,
+    "fetch_strategy": "http",
+    "parser_profile": "default",
+    "update_frequency_hint": "yearly",
+    "is_official": true,
+    "active": false,
+    "metadata": {
+      "description": "Danh sách ngành tuyển sinh đại học FTU"
+    }
+  },
+  {
+    "source_id": "ftu_admission_info",
+    "school_id": "ftu",
+    "school_name": "Đại học Ngoại thương",
+    "source_type": "news_listing",
+    "root_url": "https://tuyensinh.ftu.edu.vn/thong-tin-tuyen-sinh",
+    "trust_level": 5,
+    "priority": 2,
+    "fetch_strategy": "http",
+    "parser_profile": "default",
+    "update_frequency_hint": "monthly",
+    "is_official": true,
+    "active": false,
+    "metadata": {
+      "description": "Thông tin tuyển sinh FTU"
+    }
   }
 ]

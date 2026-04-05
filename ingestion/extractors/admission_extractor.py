@@ -35,7 +35,7 @@ def extract_admission_facts(
     Args:
         parsed: Structured parsed content
         source_ref: Source reference for traceability
-        school_name: Detected school name
+        school_name: School name (from source registry, not detected)
         use_llm_fallback: Whether to use LLM if regex confidence is low
 
     Returns:
@@ -84,8 +84,8 @@ def _regex_extract(
     text = parsed.text
     facts = []
 
-    # ─── Detect school name ─────────────────────────────────────
-    detected_school = _detect_school(text) or school_name
+    # Use school_name from source registry (no more hardcoded detection)
+    detected_school = school_name
 
     # ─── Pattern: "Ngành XXX (CODE) - YYY chỉ tiêu" ────────────
     patterns = [
@@ -129,28 +129,6 @@ def _regex_extract(
         facts.extend(table_facts)
 
     return facts
-
-
-def _detect_school(text: str) -> str:
-    """Detect school name from text."""
-    school_patterns = {
-        "Đại học Bách khoa Hà Nội": [
-            "Bách Khoa", "HUST", "ĐHBKHN", "Bách khoa Hà Nội"
-        ],
-        "VNU University of Engineering and Technology": [
-            "Đại học Công nghệ", "UET", "ĐHCN"
-        ],
-        "Đại học Kinh tế Quốc dân": [
-            "Kinh tế Quốc dân", "NEU", "KTQD"
-        ],
-    }
-
-    for school_name, keywords in school_patterns.items():
-        for kw in keywords:
-            if kw.lower() in text.lower():
-                return school_name
-
-    return "Unknown"
 
 
 def _extract_combos_near(
@@ -241,7 +219,6 @@ def _merge_facts(
     llm_facts: List[ExtractedAdmissionFact],
 ) -> List[ExtractedAdmissionFact]:
     """Merge regex and LLM facts, preferring LLM where overlap exists."""
-    # Simple merge: use LLM results as base, add unique regex results
     llm_codes = {f.program_code for f in llm_facts if f.program_code}
     merged = list(llm_facts)
 

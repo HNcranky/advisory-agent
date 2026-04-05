@@ -2,10 +2,13 @@
 """
 Normalization orchestrator.
 Transforms ExtractedAdmissionFact → NormalizedAdmissionRecord
+
+School-aware: passes school_id to mappers so they can use
+school-specific dictionaries and combo→method rules.
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from ingestion.models.pipeline_models import (
     ExtractedAdmissionFact,
@@ -15,29 +18,56 @@ from ingestion.normalization.program_mapper import map_program
 from ingestion.normalization.method_mapper import map_method
 from ingestion.normalization.subject_combination_mapper import map_combinations
 from ingestion.normalization.quota_parser import parse_quota
+from ingestion.normalization.combo_method_mapper import (
+    infer_methods_from_combos,
+    get_method_display_name,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def normalize_fact(
     fact: ExtractedAdmissionFact,
+    school_id: str = "",
 ) -> NormalizedAdmissionRecord:
     """
     Normalize a single extracted fact into a canonical record.
 
     Args:
         fact: Raw extracted admission fact
+        school_id: School identifier for school-specific normalization
 
     Returns:
         Normalized admission record
     """
-    # Map program
+    # Derive school_id from source reference if not provided
+    if not school_id:
+        school_id = fact.source_reference.school_id
+
+    # Map program (school-aware)
     program_id, program_canonical = map_program(
-        fact.program_name, fact.program_code
+        fact.program_name, fact.program_code, school_id=school_id
     )
 
-    # Map admission method
-    method = map_method(fact.admission_method_raw)
+    # ─── Determine admission method ─────────────────────────────
+    # Priority: explicit raw method → combo-based inference
+    method = None
+    if fact.admission_method_raw:
+        # If parser already provided a raw method string, normalize it
+        method = map_method(fact.admission_method_raw, school_id=school_id)
+    else:
+        # Infer method from subject combinations using rules engine
+        inferred_codes = infer_methods_from_combos(
+            combos=fact.subject_combinations_raw,
+            school_id=school_id,
+        )
+        if inferred_codes:
+            # Convert method codes to display names
+            method_names = [
+                get_method_display_name(code, school_id=school_id)
+                for code in inferred_codes
+            ]
+            method = "; ".join(method_names)
 
     # Map subject combinations
     combos = map_combinations(fact.subject_combinations_raw)
@@ -46,7 +76,7 @@ def normalize_fact(
     quota = parse_quota(fact.quota_raw)
 
     record = NormalizedAdmissionRecord(
-        school_id=fact.source_reference.school_id,
+        school_id=school_id,
         school_name_canonical=fact.school_name,
         admission_year=fact.admission_year,
         program_id=program_id,
@@ -74,12 +104,14 @@ def normalize_fact(
 
 def normalize_facts(
     facts: List[ExtractedAdmissionFact],
+    school_id: str = "",
 ) -> List[NormalizedAdmissionRecord]:
     """
     Normalize a batch of facts.
 
     Args:
         facts: List of raw extracted facts
+        school_id: School identifier (optional, derived from facts if empty)
 
     Returns:
         List of normalized records
@@ -87,7 +119,7 @@ def normalize_facts(
     records = []
     for fact in facts:
         try:
-            record = normalize_fact(fact)
+            record = normalize_fact(fact, school_id=school_id)
             records.append(record)
         except Exception as e:
             logger.error(
