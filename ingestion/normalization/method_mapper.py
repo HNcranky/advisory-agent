@@ -1,35 +1,58 @@
 # normalization/method_mapper.py
 """
 Map raw admission method text to canonical method codes.
+
+School-aware: looks up school-specific methods first,
+then falls back to shared methods.
 """
 
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-_METHODS_DICT = None
+_METHODS_CACHE: Optional[Dict[str, Any]] = None
 
 
-def _load_dict() -> dict:
-    global _METHODS_DICT
-    if _METHODS_DICT is None:
+def _load_all() -> Dict[str, Any]:
+    """Load the full methods dictionary."""
+    global _METHODS_CACHE
+    if _METHODS_CACHE is None:
         dict_path = (
             Path(__file__).parent / "dictionaries" / "methods.json"
         )
         with open(dict_path, "r", encoding="utf-8") as f:
-            _METHODS_DICT = json.load(f)
-    return _METHODS_DICT
+            _METHODS_CACHE = json.load(f)
+    return _METHODS_CACHE
 
 
-def map_method(raw_method: Optional[str]) -> Optional[str]:
+def _load_dict(school_id: str = "") -> dict:
+    """
+    Build a merged dictionary for a specific school.
+    School-specific entries override shared entries with the same key.
+    """
+    all_data = _load_all()
+    shared = all_data.get("_shared", {})
+    school = all_data.get(school_id, {}) if school_id else {}
+
+    merged = {}
+    merged.update(shared)
+    merged.update(school)
+    return merged
+
+
+def map_method(
+    raw_method: Optional[str],
+    school_id: str = "",
+) -> Optional[str]:
     """
     Map raw admission method text to canonical code.
 
     Args:
         raw_method: Raw admission method string
+        school_id: School identifier for school-specific lookup
 
     Returns:
         Canonical method code or the raw text if no match
@@ -37,7 +60,7 @@ def map_method(raw_method: Optional[str]) -> Optional[str]:
     if not raw_method:
         return None
 
-    methods = _load_dict()
+    methods = _load_dict(school_id)
     raw_lower = raw_method.lower().strip()
 
     # Check each method's aliases
@@ -54,7 +77,6 @@ def map_method(raw_method: Optional[str]) -> Optional[str]:
                 return method_code
 
     # If raw contains multiple methods, try to identify each
-    # (e.g. "Đánh giá tư duy (TSA); Xét điểm thi TN THPT")
     found_methods = []
     for method_code, info in methods.items():
         aliases = info.get("aliases", [])

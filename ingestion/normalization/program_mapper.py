@@ -1,33 +1,54 @@
 # normalization/program_mapper.py
 """
 Map raw program names to canonical program identifiers.
-Uses exact match → fuzzy match → fall through.
+Uses exact match → substring match → fuzzy match → fall through.
+
+School-aware: looks up school-specific programs first,
+then falls back to shared programs.
 """
 
 import json
 import logging
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-_PROGRAMS_DICT = None
+_PROGRAMS_CACHE: Optional[Dict[str, Any]] = None
 
 
-def _load_dict() -> dict:
-    global _PROGRAMS_DICT
-    if _PROGRAMS_DICT is None:
+def _load_all() -> Dict[str, Any]:
+    """Load the full programs dictionary (all schools + shared)."""
+    global _PROGRAMS_CACHE
+    if _PROGRAMS_CACHE is None:
         dict_path = (
             Path(__file__).parent / "dictionaries" / "programs.json"
         )
         with open(dict_path, "r", encoding="utf-8") as f:
-            _PROGRAMS_DICT = json.load(f)
-    return _PROGRAMS_DICT
+            _PROGRAMS_CACHE = json.load(f)
+    return _PROGRAMS_CACHE
+
+
+def _load_dict(school_id: str = "") -> dict:
+    """
+    Build a merged dictionary for a specific school.
+    School-specific entries override shared entries with the same key.
+    """
+    all_data = _load_all()
+    shared = all_data.get("_shared", {})
+    school = all_data.get(school_id, {}) if school_id else {}
+
+    # Shared first, then school-specific overrides
+    merged = {}
+    merged.update(shared)
+    merged.update(school)
+    return merged
 
 
 def map_program(
     program_name: Optional[str],
     program_code: Optional[str] = None,
+    school_id: str = "",
 ) -> Tuple[Optional[str], Optional[str]]:
     """
     Map raw program name/code to canonical (program_id, canonical_name).
@@ -35,6 +56,7 @@ def map_program(
     Args:
         program_name: Raw program name
         program_code: Raw program code (e.g. "IT1")
+        school_id: School identifier for school-specific lookup
 
     Returns:
         (program_id, canonical_name) tuple.
@@ -43,7 +65,7 @@ def map_program(
     if not program_name:
         return (program_code, program_name)
 
-    programs = _load_dict()
+    programs = _load_dict(school_id)
     name_lower = program_name.lower().strip()
 
     # ─── Exact alias match ──────────────────────────────────────

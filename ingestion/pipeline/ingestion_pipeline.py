@@ -4,6 +4,11 @@ Main ingestion pipeline orchestrator.
 
 Flow:
   Source Registry → Fetch → Document Router → Parser → Extractor → Normalizer
+
+All stages are school-agnostic; school-specific behavior is driven by:
+1. source.parser_profile → ParserRegistry plugin lookup
+2. source.school_id → school-aware normalization dictionaries
+3. combo_method_rules.json → data-driven method inference
 """
 
 import json
@@ -63,7 +68,7 @@ class IngestionPipeline:
         target_url = url or source.root_url
         logger.info(
             f"Starting pipeline for source '{source.source_id}' "
-            f"URL: {target_url}"
+            f"(school={source.school_id}) URL: {target_url}"
         )
 
         # ─── Step 1: Fetch ──────────────────────────────────────
@@ -83,7 +88,7 @@ class IngestionPipeline:
         # ─── Step 3: Parse ──────────────────────────────────────
         logger.info("Step 3: Parsing content...")
         parse_result = dispatch_parser(
-            fetch_result, doc_type, source.parser_profile
+            fetch_result, doc_type, source
         )
 
         # If parser returned ExtractedAdmissionFact directly
@@ -126,9 +131,12 @@ class IngestionPipeline:
             logger.warning("No facts extracted, pipeline complete")
             return []
 
-        # ─── Step 5: Normalize ──────────────────────────────────
+        # ─── Step 5: Normalize (school-aware) ───────────────────
         logger.info("Step 5: Normalizing facts...")
-        records = normalize_facts(extracted_facts)
+        records = normalize_facts(
+            extracted_facts,
+            school_id=source.school_id,
+        )
         logger.info(f"  Normalized {len(records)} records")
 
         # Update last_fetched
@@ -172,6 +180,56 @@ class IngestionPipeline:
             f"from {len(sources)} sources"
         )
         return all_records
+
+    def run_all_schools(self) -> List[NormalizedAdmissionRecord]:
+        """
+        Run pipeline for all active sources across all schools.
+
+        Returns:
+            All normalized records from all schools
+        """
+        sources = self.registry.get_sources_for_crawl()
+        school_ids = sorted(set(s.school_id for s in sources))
+
+        logger.info(
+            f"Running pipeline for {len(school_ids)} schools: "
+            f"{', '.join(school_ids)}"
+        )
+
+        all_records = []
+        for school_id in school_ids:
+            try:
+                records = self.run_for_school(school_id)
+                all_records.extend(records)
+            except Exception as e:
+                logger.error(
+                    f"Pipeline failed for school '{school_id}': {e}"
+                )
+
+        return all_records
+
+    def list_schools(self) -> List[dict]:
+        """
+        List all schools with their source counts.
+
+        Returns:
+            List of dicts with school_id, school_name, source_count, active_count
+        """
+        all_sources = self.registry.all_sources()
+        schools = {}
+        for s in all_sources:
+            if s.school_id not in schools:
+                schools[s.school_id] = {
+                    "school_id": s.school_id,
+                    "school_name": s.school_name,
+                    "total_sources": 0,
+                    "active_sources": 0,
+                }
+            schools[s.school_id]["total_sources"] += 1
+            if s.active:
+                schools[s.school_id]["active_sources"] += 1
+
+        return list(schools.values())
 
     def run_single_url(
         self,
