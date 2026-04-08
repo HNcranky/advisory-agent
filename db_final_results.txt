@@ -1,113 +1,73 @@
-Total: 103 clean records
+Total: 69 clean records
 
 Program ID                     | Canonical                                | Raw Name                                      | Method
 --------------------------------------------------------------------------------------------------------------------------------------------
-textile_technology             | Công nghệ Dệt May                        | Công nghệ Dệt May                             | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-education_technology           | Công nghệ Giáo dục                       | Công nghệ giáo dục                            | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-FL3                            | D01D01:
-                                 | D01D01:
-                                      | Xét điểm thi TN THPT; Đánh giá tư duy (TSA)
-FL4                            | D01D01:
-                                 | D01D01:
-                                      | Xét điểm thi TN THPT; Đánh giá tư duy (TSA)
-FL1                            | D01D01:
-                                 | D01D01:
-                                      | Xét điểm thi TN THPT; Đánh giá tư duy (TSA)
-electronics_telecom            | Kỹ thuật Điện tử - Viễn thông            | Điện tử và Viễn thông                         | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-information_systems            | Hệ thống Thông tin                       | Hệ thống thông tin quản lý                    | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-chemical_engineering           | Kỹ thuật Hóa học                         | Hóa học                                       | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ED2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ED3                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ED5                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EE-E18                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EE-E8                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EE-EP                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EE1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EE2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EM-E13                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EM-E14                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-TX1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-BF-E19                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-BF1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-BF2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-CH-E11                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-CH-E20                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-CH1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-CH2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-IT-E6                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-IT-E7                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-IT-EP                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-IT1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-IT2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ME-E1                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ME-GU                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ME-LUH                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ME-NUT                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ME1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ME2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-MI-E22                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-MI1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-MI2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-MS-E3                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-MS1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-MS2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-MS3                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-MS5                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-PH1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-PH2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-PH3                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-TE-E2                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-TE-EP                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-TE1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-TE2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-TE3                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-TROY-BA                        | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-TROY-IT                        | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-BF-E12                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EM-E17                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EM1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EM2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EM3                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EM5                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ET-E16                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ET-E4                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ET-E5                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ET-E9                          | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ET-LUH                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ET1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ET2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EV1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-EV2                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-HE1                            | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-IT-E10                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-IT-E15                         | K00K00: Bài thi đánh giá tư duy          | K00K00: Bài thi đánh giá tư duy               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-accounting                     | Kế toán                                  | Kế toán (Chương trình tiên tiến)              | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-data_science                   | Khoa học Dữ liệu và Trí tuệ Nhân tạo     | Khoa học Dữ liệu và Trí tuệ Nhân tạo          | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-computer_science               | Khoa học Máy tính                        | Khoa học máy tính - ĐH Troy (Hoa Kỳ)          | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-mechatronics                   | Kỹ thuật Cơ điện tử                      | Kỹ thuật Cơ điện tử                           | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-mechanical_engineering         | Kỹ thuật Cơ khí                          | Kỹ thuật Cơ khí động lực                      | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-electrical_engineering         | Kỹ thuật Điện                            | Kỹ thuật Điện tử - Viễn thông (Chương trình   | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-control_automation             | Kỹ thuật Điều khiển - Tự động hóa        | Kỹ thuật Điều khiển - Tự động hóa             | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-aerospace_engineering          | Kỹ thuật Hàng không                      | Kỹ thuật Hàng không                           | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-nuclear_engineering            | Kỹ thuật Hạt nhân                        | Kỹ thuật hạt nhân                             | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-printing_technology            | Kỹ thuật In                              | Kỹ thuật in                                   | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-heat_engineering               | Kỹ thuật Nhiệt                           | Kỹ thuật Nhiệt                                | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-automotive_engineering         | Kỹ thuật Ô tô                            | Kỹ thuật Ô tô                                 | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-bioengineering                 | Kỹ thuật Sinh học                        | Kỹ thuật Sinh học                             | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-food_technology                | Kỹ thuật Thực phẩm                       | Kỹ thuật Thực phẩm                            | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-materials_science              | Khoa học và Kỹ thuật Vật liệu            | Kỹ thuật Vật liệu                             | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-biomedical_engineering         | Kỹ thuật Y sinh                          | Kỹ thuật Y sinh                               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-industrial_management          | Quản lý Công nghiệp                      | Quản lý công nghiệp                           | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-education_management           | Quản lý Giáo dục                         | Quản lý giáo dục                              | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-environmental_engineering      | Kỹ thuật Môi trường                      | Quản lý Tài nguyên và Môi trường              | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-business_administration        | Quản trị Kinh doanh                      | Quản trị kinh doanh - ĐH Troy (Hoa Kỳ)        | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-finance_banking                | Tài chính - Ngân hàng                    | Tài chính - Ngân hàng                         | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-industrial_psychology          | Tâm lý học Công nghiệp và Tổ chức        | Tâm lý học công nghiệp và tổ chức             | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-english_professional           | Tiếng Anh Chuyên nghiệp Quốc tế          | Tiếng Anh Chuyên nghiệp Quốc tế               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-english_science_tech           | Tiếng Anh Khoa học Kỹ thuật và Công ngh  | Tiếng Anh Khoa học Kỹ thuật và Công nghệ      | Xét điểm thi TN THPT; Đánh giá tư duy (TSA)
-korean_science_tech            | Tiếng Hàn Khoa học và Công nghệ          | Tiếng Hàn Khoa học và Công nghệ               | Xét điểm thi TN THPT; Đánh giá tư duy (TSA)
-chinese_science_tech           | Tiếng Trung Khoa học và Công nghệ        | Tiếng Trung Khoa học và Công nghệ             | Xét điểm thi TN THPT; Đánh giá tư duy (TSA)
-math_informatics               | Toán - Tin                               | Toán - Tin                                    | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-ict                            | Công nghệ Thông tin - Truyền thông       | Truyền thông số và Kỹ thuật đa phương tiện (  | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-physics                        | Vật lý Kỹ thuật                          | Vật lý kỹ thuật                               | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
-medical_physics                | Vật lý Y khoa                            | Vật lý Y khoa                                 | Đánh giá tư duy (TSA); Xét điểm thi TN THPT
+IT-E15                         | An toàn không gian số (Chương trình tiê  | An toàn không gian số (Chương trình tiên tiế  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+MS2                            | Chương trình Kỹ thuật vi điện tử và côn  | Chương trình Kỹ thuật vi điện tử và công ngh  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+IT1                            | Khoa học Máy tính                        | CNTT: Khoa học Máy tính                       | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+IT2                            | Khoa học Máy tính                        | CNTT: Kỹ thuật máy tính                       | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ME-LUH                         | Kỹ thuật Cơ điện tử                      | Cơ điện tử - ĐH Leibniz Hannover (Đức)        | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ME-NUT                         | Kỹ thuật Cơ điện tử                      | Cơ điện tử - ĐH Nagaoka (Nhật Bản)            | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ME-GU                          | Kỹ thuật Cơ khí                          | Cơ khí - Chế tạo máy - ĐH Griffith (Úc)       | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+TE-EP                          | Kỹ thuật Cơ khí                          | Cơ khí hàng không (Chương trình Việt - Pháp   | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+TX1                            | Công nghệ Dệt May                        | Công nghệ Dệt May                             | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ED2                            | Công nghệ Giáo dục                       | Công nghệ giáo dục                            | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+IT-E7                          | Khoa học Máy tính                        | Công nghệ thông tin (Global ICT)              | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+IT-E6                          | Khoa học Máy tính                        | Công nghệ thông tin (Việt-Nhật) (Chương trìn  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+IT-EP                          | Khoa học Máy tính                        | Công nghệ thông tin (Việt-Pháp) (Chương trìn  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+MS3                            | Kỹ thuật Cơ khí                          | Công nghệ vật liệu polyme và compozit         | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ET-LUH                         | Điện tử-Viễn thông - ĐH Leibniz Hannove  | Điện tử-Viễn thông - ĐH Leibniz Hannover (Đứ  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ET1                            | Kỹ thuật Điện tử - Viễn thông            | Điện tử và Viễn thông                         | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EE-E18                         | Hệ thống điện và năng lượng tái tạo (Ch  | Hệ thống điện và năng lượng tái tạo (Chương   | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ET-E9                          | Kỹ thuật In                              | Hệ thống nhúng thông minh và IoT (Chương trì  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+MI2                            | Hệ thống Thông tin                       | Hệ thống thông tin quản lý                    | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+CH2                            | Kỹ thuật Hóa học                         | Hóa học                                       | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+CH-E20                         | Hóa học Mỹ phẩm (Chương trình tiên tiến  | Hóa học Mỹ phẩm (Chương trình tiên tiến)      | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EM-E17                         | Kế toán                                  | Kế toán (Chương trình tiên tiến)              | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+IT-E10                         | Khoa học Dữ liệu và Trí tuệ Nhân tạo     | Khoa học Dữ liệu và Trí tuệ Nhân tạo          | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+TROY-IT                        | Khoa học Máy tính                        | Khoa học máy tính - ĐH Troy (Hoa Kỳ)          | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+MI-E22                         | Kỹ thuật In                              | Khoa học tính toán cho các hệ thống thông mi  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+MS-E3                          | Khoa học và Kỹ thuật Vật liệu            | Khoa học và Kỹ thuật Vật liệu (Chương trình   | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ME1                            | Kỹ thuật Cơ điện tử                      | Kỹ thuật Cơ điện tử                           | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ME-E1                          | Kỹ thuật Cơ điện tử                      | Kỹ thuật Cơ điện tử (Chương trình tiên tiến)  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ME2                            | Kỹ thuật Cơ khí                          | Kỹ thuật Cơ khí                               | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+TE2                            | Kỹ thuật Cơ khí                          | Kỹ thuật Cơ khí động lực                      | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EE1                            | Kỹ thuật Điện                            | Kỹ thuật điện                                 | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ET-E4                          | Kỹ thuật Điện                            | Kỹ thuật Điện tử - Viễn thông (Chương trình   | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EE2                            | Kỹ thuật Điều khiển - Tự động hóa        | Kỹ thuật Điều khiển - Tự động hóa             | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EE-E8                          | Kỹ thuật Điều khiển - Tự động hóa        | Kỹ thuật Điều khiển - Tự động hóa (Chương tr  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+TE3                            | Kỹ thuật Hàng không                      | Kỹ thuật Hàng không                           | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+PH2                            | Kỹ thuật Hạt nhân                        | Kỹ thuật hạt nhân                             | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+CH-E11                         | Kỹ thuật Hóa dược (Chương trình tiên ti  | Kỹ thuật Hóa dược (Chương trình tiên tiến)    | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+CH1                            | Kỹ thuật Hóa học                         | Kỹ thuật Hóa học                              | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+MS5                            | Kỹ thuật In                              | Kỹ thuật in                                   | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EV1                            | Kỹ thuật Môi trường                      | Kỹ thuật Môi trường                           | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+HE1                            | Kỹ thuật Nhiệt                           | Kỹ thuật Nhiệt                                | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+TE1                            | Kỹ thuật Ô tô                            | Kỹ thuật Ô tô                                 | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+TE-E2                          | Kỹ thuật Ô tô                            | Kỹ thuật Ô tô (Chương trình tiên tiến)        | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+BF1                            | Kỹ thuật Sinh học                        | Kỹ thuật Sinh học                             | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+BF-E19                         | Kỹ thuật Sinh học                        | Kỹ thuật sinh học (Chương trình tiên tiến)    | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+BF2                            | Kỹ thuật Thực phẩm                       | Kỹ thuật Thực phẩm                            | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+BF-E12                         | Kỹ thuật Thực phẩm                       | Kỹ thuật thực phẩm (Chương trình tiên tiến)   | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+MS1                            | Khoa học và Kỹ thuật Vật liệu            | Kỹ thuật Vật liệu                             | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ET2                            | Kỹ thuật Y sinh                          | Kỹ thuật Y sinh                               | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ET-E5                          | Kỹ thuật Y sinh                          | Kỹ thuật Y sinh (Chương trình tiên tiến)      | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EM-E14                         | Khoa học Máy tính                        | Logistics và Quản lý chuỗi cung ứng (Chương   | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EM-E13                         | Quản trị Kinh doanh                      | Phân tích kinh doanh (Chương trình tiên tiến  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EM2                            | Quản lý Công nghiệp                      | Quản lý công nghiệp                           | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ED3                            | Quản lý Giáo dục                         | Quản lý giáo dục                              | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EM1                            | Quản lý năng lượng                       | Quản lý năng lượng                            | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EV2                            | Kỹ thuật Môi trường                      | Quản lý Tài nguyên và Môi trường              | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EM3                            | Quản trị Kinh doanh                      | Quản trị kinh doanh                           | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+TROY-BA                        | Quản trị Kinh doanh                      | Quản trị kinh doanh - ĐH Troy (Hoa Kỳ)        | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EM5                            | Tài chính - Ngân hàng                    | Tài chính - Ngân hàng                         | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ED5                            | Tâm lý học Công nghiệp và Tổ chức        | Tâm lý học công nghiệp và tổ chức             | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+FL2                            | Tiếng Anh Chuyên nghiệp Quốc tế          | Tiếng Anh Chuyên nghiệp Quốc tế               | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+FL1                            | Tiếng Anh Khoa học Kỹ thuật và Công ngh  | Tiếng Anh Khoa học Kỹ thuật và Công nghệ      | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+FL4                            | Tiếng Hàn Khoa học và Công nghệ          | Tiếng Hàn Khoa học và Công nghệ               | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+FL3                            | Tiếng Trung Khoa học và Công nghệ        | Tiếng Trung Khoa học và Công nghệ             | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+EE-EP                          | Kỹ thuật Điều khiển - Tự động hóa        | Tin học công nghiệp và Tự động hóa (Chương t  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+MI1                            | Toán - Tin                               | Toán - Tin                                    | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+ET-E16                         | Công nghệ Thông tin - Truyền thông       | Truyền thông số và Kỹ thuật đa phương tiện (  | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+PH1                            | Vật lý Kỹ thuật                          | Vật lý kỹ thuật                               | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)
+PH3                            | Vật lý Y khoa                            | Vật lý Y khoa                                 | Xét điểm thi TN THPT; Xét tuyển tài năng; Đánh giá tư duy (TSA)

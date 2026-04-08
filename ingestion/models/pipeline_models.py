@@ -180,7 +180,7 @@ class NormalizedAdmissionRecord(BaseModel):
     )
     quota: Optional[QuotaInfo] = None
     deadline: Optional[DeadlineInfo] = None
-    conditions: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None
     tuition: Optional[Dict[str, Any]] = None
     source_url: Optional[str] = None
     source_trust_level: int = 3

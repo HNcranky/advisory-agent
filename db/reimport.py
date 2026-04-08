@@ -4,7 +4,11 @@ sys.path.insert(0, '.')
 
 # Reset mapper cache
 import ingestion.normalization.program_mapper as pm
-pm._PROGRAMS_DICT = None
+pm._PROGRAMS_CACHE = None
+import ingestion.normalization.method_mapper as mm
+mm._METHODS_CACHE = None
+import ingestion.normalization.combo_method_mapper as cmm
+cmm._RULES_CACHE = None
 
 from ingestion.pipeline.ingestion_pipeline import IngestionPipeline
 from ingestion.storage.db_writer import save_canonical_records
