@@ -9,9 +9,11 @@ a consistent structure we can exploit.
 """
 
 import re
+import json
 import logging
-from typing import List, Optional, Dict
-from urllib.parse import urlparse
+import unicodedata
+from typing import List, Optional, Iterable, Dict, Any, Union
+from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup, Tag
 
 from ingestion.parsers.base_parser import BaseSpecializedParser
@@ -22,6 +24,179 @@ from ingestion.models.pipeline_models import (
 from ingestion.config.settings import ADMISSION_YEAR
 
 logger = logging.getLogger(__name__)
+
+_RE_LABEL_PROGRAM_CODE = re.compile(r"\bMã\s+xét\s+tuyển\b", re.IGNORECASE)
+_RE_LABEL_LANGUAGE = re.compile(r"\bNgôn\s+ngữ\s+đào\s+tạo\b", re.IGNORECASE)
+_RE_LABEL_QUOTA = re.compile(r"\bChỉ\s+tiêu\s+tuyển\s+sinh\b", re.IGNORECASE)
+_RE_LABEL_COMBOS = re.compile(r"\bTổ\s+hợp\s+xét\s+tuyển\b", re.IGNORECASE)
+_RE_LABEL_DETAIL = re.compile(r"\bChi\s+tiết\b", re.IGNORECASE)
+
+# Vietnamese subject combination codes (avoid false positives like E12 from BF-E12)
+_RE_SUBJECT_COMBO = re.compile(r"\b(DD\d|[ABCDKV]\d{2})\b")
+
+
+def _safe_decode_html(content: bytes) -> str:
+    try:
+        return content.decode("utf-8")
+    except UnicodeDecodeError:
+        return content.decode("utf-8", errors="replace")
+
+
+def _iter_text_lines(tag: Tag) -> Iterable[str]:
+    text = tag.get_text(separator="\n", strip=True)
+    for line in (l.strip() for l in text.split("\n")):
+        if line:
+            yield re.sub(r"\s+", " ", line)
+
+
+def _find_first_line(tag: Tag, pattern: re.Pattern[str]) -> Optional[str]:
+    for line in _iter_text_lines(tag):
+        if pattern.search(line):
+            return line
+    return None
+
+
+def _value_after_colon(line: str) -> str:
+    if ":" in line:
+        return line.split(":", 1)[1].strip()
+    return line.strip()
+
+
+def _extract_first_int(text: str) -> Optional[int]:
+    match = re.search(r"(\d+)", text)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def _normalize_for_match(text: str) -> str:
+    """
+    Normalize Vietnamese text for robust keyword matching.
+    Example: "Xét tuyển" -> "xet tuyen".
+    """
+    decomposed = unicodedata.normalize("NFKD", text)
+    without_marks = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return without_marks.lower().strip()
+
+
+def _dedupe_preserve_order(items: List[str]) -> List[str]:
+    seen: set[str] = set()
+    return [item for item in items if item and not (item in seen or seen.add(item))]
+
+
+def _extract_tuition_from_li(li: Tag) -> Optional[str]:
+    """Extract tuition value from one list item scope."""
+    li_text = li.get_text(" ", strip=True)
+    normalized = _normalize_for_match(li_text)
+    if not any(
+        token in normalized
+        for token in ("hoc phi", "muc hoc phi", "chi phi", "hoc phi du kien")
+    ):
+        return None
+
+    strong = li.find("strong")
+    if strong:
+        strong_text = strong.get_text(" ", strip=True)
+        range_match = re.search(
+            r"(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)",
+            strong_text,
+        )
+        if range_match:
+            return f"{range_match.group(1)}-{range_match.group(2)}"
+        if strong_text:
+            return strong_text
+
+    range_match = re.search(
+        r"(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)",
+        li_text,
+    )
+    if range_match:
+        return f"{range_match.group(1)}-{range_match.group(2)}"
+
+    if ":" in li_text:
+        value = li_text.split(":", 1)[1].strip()
+        if value:
+            return value
+    return li_text or None
+
+
+def _extract_tuition_value(
+    soup: BeautifulSoup,
+    lines: List[str],
+    target_program_code: Optional[str] = None,
+) -> str:
+    """
+    Extract tuition from the "Hoc phi" list item, preferring <strong> content.
+    Expected structure: <li>Hoc phi: <strong>55 - 65</strong></li>
+    """
+    tab1_ul = soup.select_one("#tab_1 > div > div.wrap_view > ul")
+    if tab1_ul:
+        li_nodes = tab1_ul.find_all("li", recursive=False)
+        if not li_nodes:
+            li_nodes = tab1_ul.find_all("li")
+
+        if target_program_code:
+            normalized_code = target_program_code.upper()
+            matched = []
+            for li in li_nodes:
+                li_text = li.get_text(" ", strip=True)
+                if re.search(rf"\b{re.escape(normalized_code)}\b", li_text.upper()):
+                    matched.append(li)
+            for li in matched:
+                tuition = _extract_tuition_from_li(li)
+                if tuition:
+                    return tuition
+
+        for li in li_nodes:
+            tuition = _extract_tuition_from_li(li)
+            if tuition:
+                return tuition
+
+    for li in soup.find_all("li"):
+        tuition = _extract_tuition_from_li(li)
+        if tuition:
+            return tuition
+
+    # Relaxed fallback: accept raw lines that look like tuition info.
+    for line in lines:
+        normalized = _normalize_for_match(line)
+        if not any(
+            token in normalized
+            for token in ("hoc phi", "muc hoc phi", "chi phi", "hoc phi du kien")
+        ):
+            continue
+
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+
+        range_match = re.search(
+            r"(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)",
+            cleaned,
+        )
+        if range_match:
+            return f"{range_match.group(1)}-{range_match.group(2)}"
+        if ":" in cleaned:
+            value = cleaned.split(":", 1)[1].strip()
+            if value:
+                return value
+        return cleaned
+
+    # Last chance fallback on full page text (keeps raw segment).
+    full_text = "\n".join(lines)
+    segment_match = re.search(
+        r"(?is)(học\s*phí|hoc\s*phi|chi\s*phí|chi\s*phi)[^\n]{0,160}",
+        full_text,
+    )
+    if segment_match:
+        segment = segment_match.group(0).strip()
+        if segment:
+            return segment
+
+    return "Không thông tin"
 
 
 class HustProgramParser(BaseSpecializedParser):
@@ -50,11 +225,12 @@ class HustProgramParser(BaseSpecializedParser):
     ) -> List[ExtractedAdmissionFact]:
         """Parse the HUST program listing page."""
         source_id = f"{school_id}_program_listing"
+        metadata = source_metadata or {}
+        self._fetch_detail_pages = bool(metadata.get("fetch_detail_pages", True))
+        self._detail_cache: Dict[str, Dict[str, Any]] = {}
+        self._detail_fetch_cache: Dict[str, Dict[str, Any]] = {}
 
-        try:
-            html_str = content.decode("utf-8")
-        except UnicodeDecodeError:
-            html_str = content.decode("utf-8", errors="replace")
+        html_str = _safe_decode_html(content)
 
         soup = BeautifulSoup(html_str, "html.parser")
 
@@ -85,6 +261,120 @@ class HustProgramParser(BaseSpecializedParser):
         logger.info(f"Extracted {len(facts)} programs from {school_name} listing")
         return facts
 
+    def _fetch_detail_payload(
+        self,
+        detail_url: Optional[str],
+        target_program_code: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Fetch and parse detail page for one program card."""
+        if not detail_url or not getattr(self, "_fetch_detail_pages", True):
+            return {}
+
+        code_key = (target_program_code or "").upper().strip()
+        cache_key = f"{detail_url}::{code_key}"
+        cached = self._detail_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        payload: Dict[str, Any] = {}
+        try:
+            fetch_cached = self._detail_fetch_cache.get(detail_url)
+            if fetch_cached is None:
+                from ingestion.fetchers.http_fetcher import http_fetch
+
+                detail_fetch = http_fetch(detail_url)
+                fetch_cached = {
+                    "raw_content": detail_fetch.raw_content,
+                    "resolved_detail_url": detail_fetch.final_url,
+                }
+                self._detail_fetch_cache[detail_url] = fetch_cached
+
+            payload = self._extract_detail_payload(
+                fetch_cached["raw_content"],
+                target_program_code=target_program_code,
+            )
+            payload["resolved_detail_url"] = fetch_cached.get("resolved_detail_url")
+        except Exception as error:
+            logger.warning(f"Detail fetch failed for {detail_url}: {error}")
+            payload = {}
+
+        self._detail_cache[cache_key] = payload
+        return payload
+
+    def _extract_detail_payload(
+        self,
+        html_input: Union[str, bytes],
+        target_program_code: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Extract extra admission fields from detail page HTML."""
+        if isinstance(html_input, bytes):
+            soup = BeautifulSoup(html_input, "html.parser")
+        else:
+            soup = BeautifulSoup(html_input, "html.parser")
+        for tag in soup(["script", "style", "noscript"]):
+            tag.decompose()
+
+        lines = [
+            re.sub(r"\s+", " ", line).strip()
+            for line in soup.get_text(separator="\n", strip=True).split("\n")
+            if line.strip()
+        ]
+        detail_raw_text = "\n".join(lines)
+
+        title = ""
+        if soup.title:
+            title = soup.title.get_text(" ", strip=True)
+        headings = [
+            heading.get_text(" ", strip=True)
+            for heading in soup.find_all(["h1", "h2", "h3", "h4"])
+            if heading.get_text(" ", strip=True)
+        ]
+        links = [
+            {
+                "text": anchor.get_text(" ", strip=True),
+                "href": anchor.get("href", ""),
+            }
+            for anchor in soup.find_all("a", href=True)
+        ]
+
+        method_lines: List[str] = []
+        deadline_raw: Optional[str] = None
+        tuition_raw: Optional[str] = _extract_tuition_value(
+            soup,
+            lines,
+            target_program_code=target_program_code,
+        )
+        condition_lines: List[str] = []
+
+        for line in lines:
+            normalized_line = _normalize_for_match(line)
+
+            if normalized_line.startswith("xet tuyen"):
+                method_lines.append(line.rstrip(":").strip())
+
+            if deadline_raw is None and any(
+                token in normalized_line for token in ("deadline", "thoi han", "han nop", "thoi gian")
+            ):
+                deadline_raw = line
+
+            if any(
+                token in normalized_line for token in ("dieu kien", "yeu cau", "luu y", "tieu chi")
+            ):
+                condition_lines.append(line)
+
+        return {
+            "method_lines": _dedupe_preserve_order(method_lines),
+            "deadline_raw": deadline_raw,
+            "tuition_raw": tuition_raw,
+            "condition_lines": _dedupe_preserve_order(condition_lines)[:10],
+            "detail_raw_text": detail_raw_text,
+            "detail_raw_document": {
+                "title": title,
+                "headings": _dedupe_preserve_order(headings),
+                "links": links,
+            },
+        }
+
     def _find_program_cards(self, soup: BeautifulSoup) -> list:
         """Find all program card elements in the HTML."""
         selectors = [
@@ -102,19 +392,33 @@ class HustProgramParser(BaseSpecializedParser):
                 )
                 return cards
 
-        # Fallback: look for repeating structures that contain "Mã xét tuyển"
-        all_divs = soup.find_all("div")
-        card_divs = []
-        for div in all_divs:
-            text = div.get_text()
-            if "Mã xét tuyển" in text and "Chỉ tiêu" in text:
-                children_match = div.find_all(
-                    "div", string=lambda s: s and "Mã xét tuyển" in s
-                )
-                if not children_match:
-                    card_divs.append(div)
+        # Fallback heuristic:
+        # - Find containers that include exactly one "Mã xét tuyển" label.
+        # - Prefer smaller containers to avoid merging multiple programs into one card.
+        candidates: list[Tag] = []
+        for node in soup.find_all(string=_RE_LABEL_PROGRAM_CODE):
+            if not getattr(node, "parent", None):
+                continue
+            container = node.parent if isinstance(node.parent, Tag) else None
+            for _ in range(6):
+                if not container or not isinstance(container, Tag):
+                    break
+                candidates.append(container)
+                container = container.parent if isinstance(container.parent, Tag) else None
 
-        return card_divs
+        unique: list[Tag] = []
+        seen: set[int] = set()
+        for tag in sorted(candidates, key=lambda t: len(t.get_text(strip=True))):
+            tag_id = id(tag)
+            if tag_id in seen:
+                continue
+            seen.add(tag_id)
+            txt = tag.get_text(separator="\n", strip=True)
+            if len(_RE_LABEL_PROGRAM_CODE.findall(txt)) != 1:
+                continue
+            unique.append(tag)
+
+        return unique
 
     def _parse_card(
         self,
@@ -138,9 +442,18 @@ class HustProgramParser(BaseSpecializedParser):
             program_code = header_match.group(2).strip()
             program_name = header_match.group(3).strip()
         else:
-            code_match = re.search(r"Mã xét tuyển:\s*([A-Za-z0-9\-]+)", text)
-            if code_match:
-                program_code = code_match.group(1).strip()
+            code_line = _find_first_line(card, _RE_LABEL_PROGRAM_CODE)
+            if code_line:
+                code_value = _value_after_colon(code_line)
+                # program codes like BF-E12, IT1, etc. (avoid capturing combos like K00/A00)
+                code_match = re.search(
+                    r"\b([A-Z0-9]{2,}(?:-[A-Z0-9]{1,})+)\b",
+                    code_value,
+                )
+                if not code_match:
+                    code_match = re.search(r"\b([A-Z]{2,}\d{1,3})\b", code_value)
+                if code_match:
+                    program_code = code_match.group(1).strip()
 
             heading = card.find(["h3", "h4", "h5", "a"])
             if heading:
@@ -149,45 +462,84 @@ class HustProgramParser(BaseSpecializedParser):
                 if name_text:
                     program_name = name_text
 
-        if not program_name and not program_code:
+        # On this HUST page, program_code is the stable identifier.
+        # If we cannot extract it, skip this card to avoid generating empty/duplicate records.
+        if not program_code:
             return None
 
         # ─── Extract subject combinations ───────────────────────────
-        subject_combinations = _extract_subject_combinations(text)
+        # Prefer extracting from explicit "Tổ hợp xét tuyển" lines to avoid false positives.
+        subject_combinations: List[str] = []
+        for line in _iter_text_lines(card):
+            if _RE_LABEL_COMBOS.search(line):
+                subject_combinations.extend(_RE_SUBJECT_COMBO.findall(line))
+
+        if subject_combinations:
+            # De-dup while keeping order
+            seen_combos: set[str] = set()
+            subject_combinations = [
+                c for c in subject_combinations
+                if not (c in seen_combos or seen_combos.add(c))
+            ]
+        else:
+            subject_combinations = _extract_subject_combinations(text)
+
+        # Extract raw admission methods from lines starting with "Xet tuyen..."
+        method_lines: List[str] = []
+        for line in _iter_text_lines(card):
+            normalized_line = _normalize_for_match(line)
+            if normalized_line.startswith("xet tuyen"):
+                method_lines.append(line.rstrip(":").strip())
+        if method_lines:
+            method_lines = _dedupe_preserve_order(method_lines)
 
         # ─── Extract quota ──────────────────────────────────────────
-        quota_raw = None
-        quota_match = re.search(
-            r"Chỉ tiêu(?:\s+tuyển sinh)?:\s*(\d+)", text
-        )
-        if quota_match:
-            quota_raw = quota_match.group(1)
-        elif "Chỉ tiêu" in text:
-            quota_raw = "chưa công bố"
+        quota_line = _find_first_line(card, _RE_LABEL_QUOTA)
+        if quota_line:
+            quota_value = _value_after_colon(quota_line)
+            quota_int = _extract_first_int(quota_value)
+            quota_raw = str(quota_int) if quota_int is not None else "0"
+        else:
+            quota_raw = "0"
 
         # ─── Extract language ───────────────────────────────────────
         language = None
-        lang_match = re.search(r"Ngôn ngữ đào tạo:\s*(.+?)(?:\n|$)", text)
-        if lang_match:
-            language = lang_match.group(1).strip()
+        lang_line = _find_first_line(card, _RE_LABEL_LANGUAGE)
+        if lang_line:
+            language_value = _value_after_colon(lang_line)
+            language = language_value.strip() if language_value else None
 
         # ─── Extract faculty/school ─────────────────────────────────
         faculty = None
         lines = [l.strip() for l in text.split("\n") if l.strip()]
         for line in reversed(lines):
-            if line in ("Chi tiết",):
+            if _normalize_for_match(line) == "chi tiet":
                 continue
             if any(kw in line for kw in ["Trường ", "Khoa ", "Viện "]):
                 faculty = line
                 break
 
         # ─── Extract detail URL ─────────────────────────────────────
-        detail_link = card.find("a", string=re.compile(r"Chi tiết", re.I))
+        detail_link = None
+        for anchor in card.find_all("a", href=True):
+            anchor_label = _normalize_for_match(anchor.get_text(" ", strip=True))
+            if anchor_label.startswith("chi tiet"):
+                detail_link = anchor
+                break
         detail_url = None
         if detail_link and detail_link.get("href"):
-            detail_url = detail_link["href"]
-            if not detail_url.startswith("http"):
-                detail_url = f"{self._base_url}{detail_url}"
+            detail_url = urljoin(source_url, detail_link["href"])
+        detail_payload = self._fetch_detail_payload(
+            detail_url,
+            target_program_code=program_code,
+        )
+        detail_method_lines = detail_payload.get("method_lines", [])
+        if detail_method_lines:
+            method_lines = _dedupe_preserve_order(method_lines + detail_method_lines)
+        admission_method_raw = "; ".join(method_lines) if method_lines else None
+        deadline_raw = detail_payload.get("deadline_raw")
+        # Tuition is sourced only from the detail page payload.
+        tuition_raw = detail_payload.get("tuition_raw", "Không thông tin")
 
         # ─── Build additional conditions ────────────────────────────
         conditions = {}
@@ -197,10 +549,25 @@ class HustProgramParser(BaseSpecializedParser):
             conditions["faculty"] = faculty
         if detail_url:
             conditions["detail_url"] = detail_url
+        resolved_detail_url = detail_payload.get("resolved_detail_url")
+        if resolved_detail_url:
+            conditions["resolved_detail_url"] = resolved_detail_url
+        detail_conditions = detail_payload.get("condition_lines", [])
+        if detail_conditions:
+            conditions["detail_conditions"] = detail_conditions
+        detail_raw_text = detail_payload.get("detail_raw_text")
+        if detail_raw_text:
+            conditions["detail_raw_text"] = detail_raw_text
+        detail_raw_document = detail_payload.get("detail_raw_document")
+        if detail_raw_document:
+            conditions["detail_raw_document"] = detail_raw_document
+        # Prefer detail page URL for traceability at the record level.
+        # Use resolved URL if redirects happened.
+        record_source_url = resolved_detail_url or detail_url or source_url
 
         source_ref = SourceReference(
             source_id=source_id,
-            source_url=source_url,
+            source_url=record_source_url,
             school_id=school_id,
             trust_level=5,
         )
@@ -210,10 +577,14 @@ class HustProgramParser(BaseSpecializedParser):
             admission_year=ADMISSION_YEAR,
             program_name=program_name,
             program_code=program_code,
+            admission_method_raw=admission_method_raw,
             subject_combinations_raw=subject_combinations,
             quota_raw=quota_raw,
+            deadline_raw=deadline_raw,
+            tuition_raw=tuition_raw,
             additional_conditions_raw=(
-                str(conditions) if conditions else None
+                json.dumps(conditions, ensure_ascii=False)
+                if conditions else None
             ),
             source_reference=source_ref,
             confidence_score=0.85,
@@ -262,8 +633,22 @@ class HustProgramParser(BaseSpecializedParser):
             seen_codes.add(code)
 
             combos = _extract_subject_combinations(block_text)
+            method_lines: List[str] = []
+            for raw_line in (ln.strip() for ln in block_text.split("\n")):
+                if not raw_line:
+                    continue
+                normalized_line = _normalize_for_match(raw_line)
+                if normalized_line.startswith("xet tuyen"):
+                    method_lines.append(raw_line.rstrip(":").strip())
+            if method_lines:
+                seen_methods: set[str] = set()
+                method_lines = [
+                    method for method in method_lines
+                    if not (method in seen_methods or seen_methods.add(method))
+                ]
+            admission_method_raw = "; ".join(method_lines) if method_lines else None
 
-            quota_raw = None
+            quota_raw = "0"
             quota_match = re.search(r"Chỉ tiêu[^:]*:\s*(\d+)", block_text)
             if quota_match:
                 quota_raw = quota_match.group(1)
@@ -291,10 +676,12 @@ class HustProgramParser(BaseSpecializedParser):
                 admission_year=ADMISSION_YEAR,
                 program_name=program_name,
                 program_code=code,
+                admission_method_raw=admission_method_raw,
                 subject_combinations_raw=combos,
                 quota_raw=quota_raw,
                 additional_conditions_raw=(
-                    str(conditions) if conditions else None
+                    json.dumps(conditions, ensure_ascii=False)
+                    if conditions else None
                 ),
                 source_reference=source_ref,
                 confidence_score=0.75,
@@ -315,16 +702,11 @@ def _extract_subject_combinations(text: str) -> List[str]:
     Only matches genuine Vietnamese subject combination codes:
     A00-A16, B00-B08, C00-C04, D01-D15, K00-K01, V00-V01, DD2
     """
-    VALID_COMBO_PREFIXES = {"A", "B", "C", "D", "K", "V"}
-    pattern = r"\b([A-Z]{1,2}\d{2})\b"
-    codes = re.findall(pattern, text)
+    codes = _RE_SUBJECT_COMBO.findall(text)
 
     seen = set()
     unique = []
     for code in codes:
-        prefix = code[0]
-        if prefix not in VALID_COMBO_PREFIXES:
-            continue
         if code not in seen:
             seen.add(code)
             unique.append(code)

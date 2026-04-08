@@ -161,9 +161,9 @@ def save_canonical_records(
                     record.deadline.model_dump(), ensure_ascii=False
                 ) if record.deadline else None
 
-                conditions_json = json.dumps(
-                    record.conditions, ensure_ascii=False
-                ) if record.conditions else None
+                metadata_json = json.dumps(
+                    record.metadata, ensure_ascii=False
+                ) if record.metadata else None
 
                 tuition_json = json.dumps(
                     record.tuition, ensure_ascii=False
@@ -174,7 +174,7 @@ def save_canonical_records(
                         (extracted_fact_id, school_id, school_name_canonical,
                          admission_year, program_id, program_name_canonical,
                          program_name_raw, admission_method, admission_method_raw,
-                         subject_combinations, quota, deadline, conditions,
+                         subject_combinations, quota, deadline, metadata,
                          tuition, source_url, source_trust_level,
                          confidence_score)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -186,7 +186,7 @@ def save_canonical_records(
                         subject_combinations = EXCLUDED.subject_combinations,
                         quota = EXCLUDED.quota,
                         deadline = EXCLUDED.deadline,
-                        conditions = EXCLUDED.conditions,
+                        metadata = EXCLUDED.metadata,
                         tuition = EXCLUDED.tuition,
                         source_url = EXCLUDED.source_url,
                         source_trust_level = EXCLUDED.source_trust_level,
@@ -205,7 +205,7 @@ def save_canonical_records(
                     combos_json,
                     quota_json,
                     deadline_json,
-                    conditions_json,
+                    metadata_json,
                     tuition_json,
                     record.source_url,
                     record.source_trust_level,

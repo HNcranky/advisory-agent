@@ -63,28 +63,21 @@ def map_method(
     methods = _load_dict(school_id)
     raw_lower = raw_method.lower().strip()
 
-    # Check each method's aliases
-    for method_code, info in methods.items():
-        canonical_name = info["canonical_name"]
-        aliases = info.get("aliases", [])
-
-        # Exact match
-        if raw_lower == canonical_name.lower():
-            return method_code
-
-        for alias in aliases:
-            if alias.lower() in raw_lower:
-                return method_code
-
-    # If raw contains multiple methods, try to identify each
+    # Collect all matched methods (do not early-return),
+    # because one source line can contain multiple method fragments.
     found_methods = []
     for method_code, info in methods.items():
-        aliases = info.get("aliases", [])
-        for alias in aliases:
-            if alias.lower() in raw_lower:
-                if method_code not in found_methods:
-                    found_methods.append(method_code)
+        candidates = [info["canonical_name"]] + info.get("aliases", [])
+        matched = False
+        for candidate in candidates:
+            candidate_lower = candidate.lower().strip()
+            if not candidate_lower:
+                continue
+            if raw_lower == candidate_lower or candidate_lower in raw_lower:
+                matched = True
                 break
+        if matched and method_code not in found_methods:
+            found_methods.append(method_code)
 
     if found_methods:
         return "; ".join(found_methods)

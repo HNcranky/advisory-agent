@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS canonical_admission_records (
     subject_combinations    JSONB,
     quota                   JSONB,
     deadline                JSONB,
-    conditions              JSONB,
+    metadata                JSONB,
     tuition                 JSONB,
     source_url              TEXT,
     source_trust_level      INTEGER,
