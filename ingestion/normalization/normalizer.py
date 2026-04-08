@@ -8,6 +8,7 @@ school-specific dictionaries and combo→method rules.
 """
 
 import logging
+import json
 from typing import List, Optional
 
 from ingestion.models.pipeline_models import (
@@ -44,17 +45,31 @@ def normalize_fact(
     if not school_id:
         school_id = fact.source_reference.school_id
 
-    # Map program (school-aware)
+    # Map program (school-aware). This yields a canonical program identifier
+    # from dictionaries when available, otherwise falls back to (program_code, program_name).
     program_id, program_canonical = map_program(
         fact.program_name, fact.program_code, school_id=school_id
     )
+
+    # Enforce stable program_id as "Mã xét tuyển" when available.
+    # This prevents mixed IDs (sometimes text, sometimes dict key) in storage.
+    program_code = (fact.program_code or "").strip() or None
+    if program_code:
+        program_id = program_code
 
     # ─── Determine admission method ─────────────────────────────
     # Priority: explicit raw method → combo-based inference
     method = None
     if fact.admission_method_raw:
         # If parser already provided a raw method string, normalize it
-        method = map_method(fact.admission_method_raw, school_id=school_id)
+        mapped = map_method(fact.admission_method_raw, school_id=school_id)
+        if mapped:
+            method_parts = [m.strip() for m in mapped.split(";") if m.strip()]
+            method_names = [
+                get_method_display_name(code, school_id=school_id)
+                for code in method_parts
+            ]
+            method = "; ".join(method_names) if method_names else None
     else:
         # Infer method from subject combinations using rules engine
         inferred_codes = infer_methods_from_combos(
@@ -75,6 +90,13 @@ def normalize_fact(
     # Parse quota
     quota = parse_quota(fact.quota_raw)
 
+    conditions_payload = None
+    if fact.additional_conditions_raw:
+        try:
+            conditions_payload = json.loads(fact.additional_conditions_raw)
+        except (TypeError, json.JSONDecodeError):
+            conditions_payload = {"raw": fact.additional_conditions_raw}
+
     record = NormalizedAdmissionRecord(
         school_id=school_id,
         school_name_canonical=fact.school_name,
@@ -86,10 +108,7 @@ def normalize_fact(
         admission_method_raw=fact.admission_method_raw,
         subject_combinations=combos,
         quota=quota,
-        conditions=(
-            {"raw": fact.additional_conditions_raw}
-            if fact.additional_conditions_raw else None
-        ),
+        metadata=conditions_payload,
         tuition=(
             {"raw": fact.tuition_raw}
             if fact.tuition_raw else None

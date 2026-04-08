@@ -29,19 +29,13 @@
       "canonical_name": "Xét tuyển tài năng",
       "aliases": [
         "tuyển thẳng",
+        "tuyển thẳng theo quy chế",
+        "miễn thi",
         "ưu tiên xét tuyển",
         "xét tuyển tài năng",
         "tuyển sinh tài năng",
         "xét tuyển sớm",
         "phương thức xét tuyển tài năng"
-      ]
-    },
-    "direct_admission": {
-      "canonical_name": "Tuyển thẳng",
-      "aliases": [
-        "tuyển thẳng theo quy chế",
-        "miễn thi",
-        "tuyển thẳng"
       ]
     },
     "combined": {
