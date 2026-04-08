@@ -2,9 +2,22 @@
 import sys, json
 sys.path.insert(0, '.')
 
-# Reset mapper cache
+# Reset mapper caches (defensive against future renames)
 import ingestion.normalization.program_mapper as pm
-pm._PROGRAMS_DICT = None
+if hasattr(pm, "_PROGRAMS_CACHE"):
+    pm._PROGRAMS_CACHE = None
+if hasattr(pm, "_PROGRAMS_DICT"):
+    pm._PROGRAMS_DICT = None
+
+import ingestion.normalization.method_mapper as mm
+if hasattr(mm, "_METHODS_CACHE"):
+    mm._METHODS_CACHE = None
+if hasattr(mm, "_METHOD_DICT"):
+    mm._METHOD_DICT = None
+
+import ingestion.normalization.combo_method_mapper as cmm
+if hasattr(cmm, "_RULES_CACHE"):
+    cmm._RULES_CACHE = None
 
 from ingestion.pipeline.ingestion_pipeline import IngestionPipeline
 from ingestion.storage.db_writer import save_canonical_records
