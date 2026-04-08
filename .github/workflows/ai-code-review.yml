@@ -1,0 +1,21 @@
+name: AI Code Review
+
+# Trigger the workflow when a PR is opened or updated (synchronize)
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  ai_review:
+    # This matches the runner you installed on your ai-srv machine
+    runs-on: self-hosted 
+    
+    steps:
+      - name: Execute AI Code Review Script
+        # Pass the secret from GitHub down to your local server environment
+        env:
+          GOG_KEYRING_PASSWORD: ${{ secrets.GOG_KEYRING_PASSWORD }}
+        run: |
+          echo "Triggering AI Code Review on ai-srv..."
+          # Execute your orchestrator script directly
+          /home/ubuntu/.openclaw/shared/ai_code_review.sh
