@@ -1,26 +1,8 @@
-# agents/conflict_agent.py
-
+from services.retrieval_service import detect_conflicts
 from state import AgentState
 
 
 def conflict_agent(state: AgentState):
-
-    conflicts = []
-
-    seen = {}
-
-    for program in state.retrieved_programs:
-
-        key = (program.university, program.program)
-
-        if key not in seen:
-            seen[key] = program.quota
-        else:
-            if seen[key] != program.quota:
-                conflicts.append(
-                    f"Quota conflict for {program.program} at {program.university}"
-                )
-
-    state.conflicts = conflicts
-
+    detected = detect_conflicts(state.retrieved_programs)
+    state.conflicts = list(dict.fromkeys(state.conflicts + detected))
     return state
