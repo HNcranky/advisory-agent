@@ -27,7 +27,7 @@ def advisory_agent(state: AgentState):
         for program in programs:
             if profile.total_score is not None and profile.total_score >= 26:
                 advice.append(
-                    f"You have a strong profile for {program.program_name} at {program.school_name}."
+                    f"Profile cua ban phu hop voi chuong trinh {program.program_name} tai {program.school_name}."
                 )
             else:
                 advice.append(
