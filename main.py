@@ -1,12 +1,5 @@
-# main.py
+from scripts.run_advisory_demo import main
 
-from graph import graph
-from state import AgentState
 
-state = AgentState(
-    user_query="Em được 27 điểm A00 muốn học công nghệ thông tin"
-)
-
-result = graph.invoke(state)
-
-print(result["advisory"])
+if __name__ == "__main__":
+    raise SystemExit(main())
