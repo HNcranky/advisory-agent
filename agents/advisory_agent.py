@@ -1,26 +1,30 @@
-# agents/advisory_agent.py
-
+from services.policy_service import evaluate_basic_policy
 from state import AgentState
 
 
 def advisory_agent(state: AgentState):
-
     profile = state.student_profile
     programs = state.retrieved_programs
+    policy = evaluate_basic_policy(profile, programs)
+    state.policy_decision = policy
 
     advice = []
-
     for program in programs:
-
-        if profile.score and profile.score >= 26:
+        if profile.total_score is not None and profile.total_score >= 26:
             advice.append(
-                f"You have a strong chance for {program.program} at {program.university}"
+                f"You have a strong profile for {program.program_name} at {program.school_name}."
             )
         else:
             advice.append(
-                f"{program.program} at {program.university} might be competitive"
+                f"{program.program_name} at {program.school_name} is potentially competitive."
             )
 
-    state.advisory = "\n".join(advice)
+    if not advice:
+        advice.append("Chua tim thay nganh phu hop voi profile hien tai.")
+    if policy.warnings:
+        advice.extend([f"Warning: {warning}" for warning in policy.warnings])
 
+    state.advisory = "\n".join(advice)
+    state.final_answer = state.advisory
+    state.citations = [ev for program in programs for ev in program.evidence]
     return state

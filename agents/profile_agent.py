@@ -1,23 +1,8 @@
-# agents/profile_agent.py
-
-from state import AgentState, StudentProfile
+from services.profile_service import build_profile
+from state import AgentState
 
 
 def profile_agent(state: AgentState):
-
-    query = state.user_query.lower()
-
-    profile = StudentProfile()
-
-    if "toán" in query:
-        profile.subjects = ["math"]
-
-    if "27 điểm" in query:
-        profile.score = 27
-
-    if "công nghệ thông tin" in query:
-        profile.preferred_major = "Computer Science"
-
-    state.student_profile = profile
-
+    state.student_profile = build_profile(state.user_query)
+    state.retrieval_missing_data = list(state.student_profile.missing_slots)
     return state
