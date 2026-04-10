@@ -61,3 +61,6 @@ class PolicyDecision(BaseModel):
     allow_answer: bool = True
     blocked_claims: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
+    policy_flags: List[str] = Field(default_factory=list)
+    requires_follow_up: bool = False
+    allowed_candidate_ids: List[str] = Field(default_factory=list)

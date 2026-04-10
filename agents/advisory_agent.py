@@ -1,13 +1,10 @@
 from services.reasoning_service import index_candidates_by_id
-from services.policy_service import evaluate_basic_policy
 from state import AgentState
 
 
 def advisory_agent(state: AgentState):
-    profile = state.student_profile
     programs = state.retrieved_programs
-    policy = evaluate_basic_policy(profile, programs)
-    state.policy_decision = policy
+    policy = state.policy_decision
 
     advice = []
     by_id = index_candidates_by_id(programs)
@@ -20,24 +17,22 @@ def advisory_agent(state: AgentState):
                 f"{candidate.program_name} at {candidate.school_name}: {recommendation.band} "
                 f"(score={recommendation.score})."
             )
-            if recommendation.cautions:
-                for caution in recommendation.cautions:
-                    advice.append(f"Note: {caution}")
+            for caution in recommendation.cautions:
+                advice.append(f"Note: {caution}")
     else:
-        for program in programs:
-            if profile.total_score is not None and profile.total_score >= 26:
-                advice.append(
-                    f"Profile cua ban phu hop voi chuong trinh {program.program_name} tai {program.school_name}."
-                )
-            else:
-                advice.append(
-                    f"{program.program_name} at {program.school_name} is potentially competitive."
-                )
+        for program in programs[:5]:
+            advice.append(
+                f"{program.program_name} at {program.school_name} can be considered after more profile details."
+            )
 
     if not advice:
         advice.append("Chua tim thay nganh phu hop voi profile hien tai.")
-    if policy.warnings:
+    if policy and policy.warnings:
         advice.extend([f"Warning: {warning}" for warning in policy.warnings])
+    if policy and policy.requires_follow_up:
+        advice.append(
+            "Follow-up: vui long bo sung diem, to hop mon, va nganh uu tien de tu van chinh xac hon."
+        )
 
     state.advisory = "\n".join(advice)
     state.final_answer = state.advisory
