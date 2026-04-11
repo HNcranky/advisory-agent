@@ -1,9 +1,3 @@
-# normalization/subject_combination_mapper.py
-"""
-Normalize raw subject combination codes/text into
-structured SubjectCombination objects.
-"""
-
 import re
 import json
 import logging
@@ -49,7 +43,7 @@ def map_combinations(
     seen = set()
 
     for raw in raw_combos:
-        # Extract code from raw text
+                                    
         codes = re.findall(r"\b([A-Z]{1,2}\d{2})\b", raw)
 
         if codes:
@@ -71,7 +65,7 @@ def map_combinations(
                         description=f"Unknown combination {code}",
                     ))
         else:
-            # Raw text without a code - try to match
+                                                    
             combo = _match_from_text(raw, subjects_dict)
             if combo and combo.code not in seen:
                 seen.add(combo.code)

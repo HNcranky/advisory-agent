@@ -1,12 +1,3 @@
-# normalization/normalizer.py
-"""
-Normalization orchestrator.
-Transforms ExtractedAdmissionFact → NormalizedAdmissionRecord
-
-School-aware: passes school_id to mappers so they can use
-school-specific dictionaries and combo→method rules.
-"""
-
 import logging
 import json
 from typing import List, Optional
@@ -41,27 +32,27 @@ def normalize_fact(
     Returns:
         Normalized admission record
     """
-    # Derive school_id from source reference if not provided
+                                                            
     if not school_id:
         school_id = fact.source_reference.school_id
 
-    # Map program (school-aware). This yields a canonical program identifier
-    # from dictionaries when available, otherwise falls back to (program_code, program_name).
+                                                                            
+                                                                                             
     program_id, program_canonical = map_program(
         fact.program_name, fact.program_code, school_id=school_id
     )
 
-    # Enforce stable program_id as "Mã xét tuyển" when available.
-    # This prevents mixed IDs (sometimes text, sometimes dict key) in storage.
+                                                                 
+                                                                              
     program_code = (fact.program_code or "").strip() or None
     if program_code:
         program_id = program_code
 
-    # ─── Determine admission method ─────────────────────────────
-    # Priority: explicit raw method → combo-based inference
+                                                                  
+                                                           
     method = None
     if fact.admission_method_raw:
-        # If parser already provided a raw method string, normalize it
+                                                                      
         mapped = map_method(fact.admission_method_raw, school_id=school_id)
         if mapped:
             method_parts = [m.strip() for m in mapped.split(";") if m.strip()]
@@ -71,23 +62,23 @@ def normalize_fact(
             ]
             method = "; ".join(method_names) if method_names else None
     else:
-        # Infer method from subject combinations using rules engine
+                                                                   
         inferred_codes = infer_methods_from_combos(
             combos=fact.subject_combinations_raw,
             school_id=school_id,
         )
         if inferred_codes:
-            # Convert method codes to display names
+                                                   
             method_names = [
                 get_method_display_name(code, school_id=school_id)
                 for code in inferred_codes
             ]
             method = "; ".join(method_names)
 
-    # Map subject combinations
+                              
     combos = map_combinations(fact.subject_combinations_raw)
 
-    # Parse quota
+                 
     quota = parse_quota(fact.quota_raw)
 
     conditions_payload = None

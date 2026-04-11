@@ -1,4 +1,4 @@
-# parsers/pdf_parser.py
+                       
 """
 Improved PDF parser with table extraction and scanned PDF detection.
 """
@@ -35,7 +35,7 @@ def parse_pdf(content: bytes, url: str = "") -> ParsedContent:
     try:
         text = extract_text(path)
 
-        # Extract tables if tabula is available
+                                               
         tables = _extract_pdf_tables(path)
 
         parsed = ParsedContent(
@@ -69,9 +69,9 @@ def _extract_pdf_tables(path: str) -> list:
         tables = []
         for df in dfs:
             rows = []
-            # Header
+                    
             rows.append(list(df.columns))
-            # Data
+                  
             for _, row in df.iterrows():
                 rows.append([str(v) for v in row.values])
             tables.append(rows)

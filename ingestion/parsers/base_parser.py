@@ -1,12 +1,3 @@
-# parsers/base_parser.py
-"""
-Base class and registry for specialized parsers.
-
-Each school/source that needs custom parsing logic implements
-a BaseSpecializedParser subclass and registers it with the
-ParserRegistry.
-"""
-
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional, Type
@@ -114,6 +105,6 @@ class ParserRegistry:
         except ImportError as e:
             logger.warning(f"Could not load HustProgramParser: {e}")
 
-        # ─── Add new school parsers here ────────────────────────
-        # from ingestion.parsers.neu_parser import NeuProgramParser
-        # self.register(NeuProgramParser())
+                                                                  
+                                                                   
+                                           

@@ -1,9 +1,3 @@
-# fetchers/fetch_dispatcher.py
-"""
-Dispatches fetch requests to the appropriate fetcher
-based on source configuration.
-"""
-
 import logging
 from ingestion.registry.models import SourceEntry, FetchStrategy
 from ingestion.models.pipeline_models import FetchResult, DiscoveredResource
@@ -29,17 +23,17 @@ def dispatch_fetch(
     strategy = source.fetch_strategy
 
     if strategy == FetchStrategy.BROWSER:
-        # Playwright-based browser fetch
-        # TODO: Implement in browser_fetcher.py
+                                        
+                                               
         logger.info(f"Browser fetch for {url} (falling back to HTTP)")
         return http_fetch(url)
 
     elif strategy == FetchStrategy.API:
-        # API-based fetch
-        # TODO: Implement in api_fetcher.py
+                         
+                                           
         logger.info(f"API fetch for {url} (falling back to HTTP)")
         return http_fetch(url)
 
     else:
-        # Default HTTP fetch
+                            
         return http_fetch(url)

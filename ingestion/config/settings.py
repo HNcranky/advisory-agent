@@ -1,17 +1,17 @@
 import os
 from pathlib import Path
 
-# ─── Project Paths ──────────────────────────────────────────────
+                                                                  
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 INGESTION_ROOT = PROJECT_ROOT / "ingestion"
 DATA_DIR = INGESTION_ROOT / "data"
 RAW_CONTENT_DIR = DATA_DIR / "raw"
 DICTIONARIES_DIR = INGESTION_ROOT / "normalization" / "dictionaries"
 
-# Ensure data dirs exist
+                        
 RAW_CONTENT_DIR.mkdir(parents=True, exist_ok=True)
 
-# ─── Database ───────────────────────────────────────────────────
+                                                                  
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "port": int(os.getenv("DB_PORT", 5432)),
@@ -20,20 +20,20 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD", "1"),
 }
 
-# ─── Gemini LLM ─────────────────────────────────────────────────
+                                                                  
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-# Extraction model
+                  
 GEMINI_EXTRACTION_MODEL = os.getenv(
     "GEMINI_EXTRACTION_MODEL", "gemini-2.5-flash"
 )
 
-# OCR model (lighter, cheaper)
+                              
 GEMINI_OCR_MODEL = os.getenv(
     "GEMINI_OCR_MODEL", "gemini-2.5-flash-lite"
 )
 
-# ─── Fetch Settings ─────────────────────────────────────────────
+                                                                  
 FETCH_TIMEOUT = int(os.getenv("FETCH_TIMEOUT", 30))
 FETCH_MAX_RETRIES = int(os.getenv("FETCH_MAX_RETRIES", 3))
 FETCH_RETRY_BACKOFF = float(os.getenv("FETCH_RETRY_BACKOFF", 1.5))
@@ -44,7 +44,7 @@ USER_AGENTS = [
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
 ]
 
-# ─── Discovery Settings ─────────────────────────────────────────
+                                                                  
 ADMISSION_KEYWORDS = [
     "tuyển sinh",
     "đề án",
@@ -58,9 +58,9 @@ ADMISSION_KEYWORDS = [
     "enrollment",
 ]
 
-# ─── Pipeline Settings ──────────────────────────────────────────
-# Current admission year
+                                                                  
+                        
 ADMISSION_YEAR = int(os.getenv("ADMISSION_YEAR", 2026))
 
-# Max text length before chunking for LLM
+                                         
 LLM_MAX_CHUNK_SIZE = int(os.getenv("LLM_MAX_CHUNK_SIZE", 30000))
