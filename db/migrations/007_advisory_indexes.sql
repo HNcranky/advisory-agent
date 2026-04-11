@@ -1,5 +1,3 @@
--- 007_advisory_indexes.sql
--- Adds indexes to improve advisory retrieval queries.
 
 CREATE INDEX IF NOT EXISTS idx_canonical_school_year
 ON canonical_admission_records (school_id, admission_year);

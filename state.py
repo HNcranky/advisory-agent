@@ -39,5 +39,5 @@ class AgentState(BaseModel):
     final_answer: Optional[str] = None
 
 
-# Backward-compatible alias for older code paths.
+                                                 
 ProgramInfo = CandidateProgram

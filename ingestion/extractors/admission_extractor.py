@@ -30,7 +30,7 @@ def extract_admission_facts(
     Returns:
         List of extracted facts
     """
-    # ─── Step 1: Regex extraction ───────────────────────────────
+                                                                  
     regex_facts = _regex_extract(parsed, source_ref, school_name)
 
     logger.info(
@@ -38,7 +38,7 @@ def extract_admission_facts(
         f"avg confidence: {_avg_confidence(regex_facts):.2f}"
     )
 
-    # ─── Step 2: LLM fallback if needed ─────────────────────────
+                                                                  
     if use_llm_fallback and (
         not regex_facts or _avg_confidence(regex_facts) < 0.6
     ):
@@ -48,7 +48,7 @@ def extract_admission_facts(
             llm_facts = llm_extract(parsed, source_ref, school_name)
 
             if llm_facts:
-                # If LLM found more facts or higher quality, use LLM
+                                                                    
                 if len(llm_facts) > len(regex_facts):
                     logger.info(
                         f"Using LLM results ({len(llm_facts)} facts) "
@@ -56,7 +56,7 @@ def extract_admission_facts(
                     )
                     return llm_facts
                 else:
-                    # Merge: prefer LLM confidence
+                                                  
                     return _merge_facts(regex_facts, llm_facts)
         except Exception as e:
             logger.warning(f"LLM extraction failed: {e}")
@@ -73,16 +73,16 @@ def _regex_extract(
     text = parsed.text
     facts = []
 
-    # Use school_name from source registry (no more hardcoded detection)
+                                                                        
     detected_school = school_name
 
-    # ─── Pattern: "Ngành XXX (CODE) - YYY chỉ tiêu" ────────────
+                                                                 
     patterns = [
-        # "ngành (IT1) 300 chỉ tiêu"
+                                    
         r"([A-ZĐa-zÀ-ỹ\s]+)\((\w+)\).*?(\d+)\s*chỉ tiêu",
-        # "Ngành XXX Mã XXX Chỉ tiêu XXX"
+                                         
         r"Ngành\s+(.*?)\s*Mã\s+(\w+)\s*Chỉ tiêu\s*(\d+)",
-        # "Ngành XXX tuyển XXX chỉ tiêu"
+                                        
         r"Ngành\s+(.*?)\s*tuyển\s+(\d+)\s*chỉ tiêu",
     ]
 
@@ -110,7 +110,7 @@ def _regex_extract(
                 extraction_method="regex",
             ))
 
-    # ─── Extract from tables ────────────────────────────────────
+                                                                  
     for table in parsed.tables:
         table_facts = _extract_from_table(
             table, detected_school, source_ref
@@ -126,7 +126,7 @@ def _extract_combos_near(
     """Extract subject combinations near a program mention."""
     combo_pattern = r"\b([A-Z]{1,2}\d{2})\b"
     if program_name:
-        # Try to find combos in the vicinity of the program name
+                                                                
         idx = text.lower().find(program_name.lower())
         if idx >= 0:
             vicinity = text[max(0, idx-100):idx+500]
@@ -145,7 +145,7 @@ def _extract_from_table(
     if not table or len(table) < 2:
         return facts
 
-    # Try to identify columns
+                             
     header = [h.lower() for h in table[0]]
     col_map = _identify_columns(header)
 

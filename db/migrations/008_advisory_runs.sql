@@ -1,5 +1,3 @@
--- 008_advisory_runs.sql
--- Stores advisory pipeline artifacts for audit/debug.
 
 CREATE TABLE IF NOT EXISTS advisory_runs (
     id SERIAL PRIMARY KEY,

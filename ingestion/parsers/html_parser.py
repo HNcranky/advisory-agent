@@ -1,13 +1,3 @@
-# parsers/html_parser.py
-"""
-Improved HTML parser that extracts structured content:
-- Clean text
-- Headings hierarchy
-- Tables
-- Links
-- Title
-"""
-
 import logging
 from typing import List, Dict
 from bs4 import BeautifulSoup, Tag
@@ -28,7 +18,7 @@ def parse_html(content: bytes, url: str = "") -> ParsedContent:
     Returns:
         ParsedContent with text, headings, tables, links
     """
-    # Handle encoding
+                     
     try:
         html_str = content.decode("utf-8")
     except UnicodeDecodeError:
@@ -39,32 +29,32 @@ def parse_html(content: bytes, url: str = "") -> ParsedContent:
 
     soup = BeautifulSoup(html_str, "html.parser")
 
-    # Remove scripts, styles, nav, footer noise
+                                               
     for tag in soup(["script", "style", "noscript", "iframe"]):
         tag.decompose()
 
-    # ─── Extract title ──────────────────────────────────────────
+                                                                  
     title = None
     title_tag = soup.find("title")
     if title_tag:
         title = title_tag.get_text(strip=True)
 
-    # ─── Find main content area ─────────────────────────────────
+                                                                  
     content_tag = _find_content_area(soup)
 
-    # ─── Extract headings ───────────────────────────────────────
+                                                                  
     headings = _extract_headings(content_tag)
 
-    # ─── Extract tables ─────────────────────────────────────────
+                                                                  
     tables = _extract_tables(content_tag)
 
-    # ─── Extract links ──────────────────────────────────────────
+                                                                  
     links = _extract_links(content_tag)
 
-    # ─── Extract images ─────────────────────────────────────────
+                                                                  
     images = _extract_images(content_tag)
 
-    # ─── Extract clean text ─────────────────────────────────────
+                                                                  
     text = content_tag.get_text(separator="\n", strip=True)
 
     parsed = ParsedContent(
@@ -90,7 +80,7 @@ def parse_html(content: bytes, url: str = "") -> ParsedContent:
 
 def _find_content_area(soup: BeautifulSoup) -> Tag:
     """Find the main content area, falling back through several strategies."""
-    # Try common content containers in order of specificity
+                                                           
     selectors = [
         ("article", {}),
         ("div", {"class": "content"}),
@@ -107,7 +97,7 @@ def _find_content_area(soup: BeautifulSoup) -> Tag:
         if found:
             return found
 
-    # Fallback: body
+                    
     return soup.body or soup
 
 

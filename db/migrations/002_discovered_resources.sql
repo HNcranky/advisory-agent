@@ -1,5 +1,3 @@
--- 002_discovered_resources.sql
--- Tracks URLs discovered by the discovery layer
 
 CREATE TABLE IF NOT EXISTS discovered_resources (
     id              SERIAL PRIMARY KEY,

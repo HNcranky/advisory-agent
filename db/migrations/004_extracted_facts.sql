@@ -1,5 +1,3 @@
--- 004_extracted_facts.sql
--- Stores raw extracted admission facts (pre-normalization)
 
 CREATE TABLE IF NOT EXISTS extracted_facts (
     id                          SERIAL PRIMARY KEY,

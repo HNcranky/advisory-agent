@@ -1,8 +1,3 @@
-# fetchers/http_fetcher.py
-"""
-Improved HTTP fetcher with retry logic, proper metadata, and content hashing.
-"""
-
 import time
 import random
 import hashlib
@@ -75,7 +70,7 @@ def http_fetch(
             raw_content = response.content
             content_hash = hashlib.sha256(raw_content).hexdigest()
 
-            # Extract response headers as simple dict
+                                                     
             resp_headers = dict(response.headers)
 
             result = FetchResult(
@@ -108,6 +103,6 @@ def http_fetch(
             if attempt < max_retries - 1:
                 time.sleep(wait_time)
 
-    # All retries exhausted
+                           
     logger.error(f"All {max_retries} fetch attempts failed for {url}")
     raise last_exception  # type: ignore
