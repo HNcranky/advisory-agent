@@ -1,12 +1,3 @@
-# db/setup_db.py
-"""
-Database setup script.
-Creates the 'admission' database and runs all migrations.
-
-Usage:
-    python db/setup_db.py
-"""
-
 import sys
 import os
 from pathlib import Path

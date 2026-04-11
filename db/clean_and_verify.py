@@ -1,4 +1,3 @@
-"""Final cleanup: remove noise K00K00 records and verify."""
 import sys
 sys.path.insert(0, '.')
 from ingestion.storage.db_connection import get_cursor

@@ -1,8 +1,6 @@
-"""Final re-run: clean DB, re-run pipeline with updated dictionary, import."""
 import sys, json
 sys.path.insert(0, '.')
 
-# Reset mapper caches (defensive against future renames)
 import ingestion.normalization.program_mapper as pm
 if hasattr(pm, "_PROGRAMS_CACHE"):
     pm._PROGRAMS_CACHE = None

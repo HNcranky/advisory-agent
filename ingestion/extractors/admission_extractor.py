@@ -1,14 +1,3 @@
-# extractors/admission_extractor.py
-"""
-Orchestrator for admission fact extraction.
-
-Strategy:
-1. If parser_profile is a specialized parser → use its output directly
-2. Try regex-based extraction first (fast, free)
-3. If confidence is low → upgrade to LLM extraction via Gemini
-4. Merge and deduplicate results
-"""
-
 import re
 import logging
 from typing import List
