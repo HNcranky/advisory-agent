@@ -31,3 +31,4 @@ class InferenceResult(BaseModel):
     parsed_data: Optional[Dict[str, Any]] = None
     failure_type: Optional[str] = None
     warnings: List[str] = Field(default_factory=list)
+    uncertainty_reasons: List[str] = Field(default_factory=list)
