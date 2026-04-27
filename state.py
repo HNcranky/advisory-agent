@@ -37,6 +37,9 @@ class AgentState(BaseModel):
 
     advisory: Optional[str] = None
     final_answer: Optional[str] = None
+    
+    inference_warnings: List[str] = Field(default_factory=list)
+    uncertainty_reasons: List[str] = Field(default_factory=list)
 
 
                                                  
