@@ -42,6 +42,9 @@ def run(query: str, admission_year: int = 2026, json_output: bool = False) -> in
     print(f"Recommendations: {len(recommendations)}")
     print("Final Answer:")
     print(state.get("final_answer") or state.get("advisory") or "(empty)")
+    if state.get("uncertainty_reasons"):
+        print("Uncertainty:")
+        print(json.dumps(state["uncertainty_reasons"], ensure_ascii=False, indent=2))
     return 0
 
 

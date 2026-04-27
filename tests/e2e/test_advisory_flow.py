@@ -1,13 +1,10 @@
-import json
-from pathlib import Path
-
+import agents.profile_agent as profile_agent_module
+import agents.policy_agent as policy_agent_module
 import agents.retrieval_agent as retrieval_agent
-from agents.models import CandidateProgram, Evidence
+from agents.models import CandidateProgram, Evidence, StudentProfile
 from graph import graph
+from services.inference.models import InferenceResult
 from state import AgentState
-
-
-FIXTURE_PATH = Path(__file__).resolve().parent.parent / "fixtures" / "advisory_queries.json"
 
 
 def _mock_candidates():
@@ -51,42 +48,107 @@ def _mock_candidates():
     ]
 
 
-def test_advisory_flow_from_fixture_cases(monkeypatch):
-    with open(FIXTURE_PATH, "r", encoding="utf-8") as handle:
-        cases = json.load(handle)
+def _mock_profile():
+    return StudentProfile(
+        total_score=27,
+        subject_combination="A00",
+        preferred_majors=["computer_science"],
+        preferred_schools=["hust"],
+        missing_slots=[],
+    )
 
-    for case in cases:
-        if case["id"] == "no_result_case":
-            monkeypatch.setattr(
-                retrieval_agent, "fetch_candidates", lambda filters, limit=100: []
+
+def test_advisory_flow_returns_policy_checked_answer(monkeypatch):
+    monkeypatch.setattr(
+        profile_agent_module,
+        "build_profile_with_gateway",
+        lambda user_query, gateway: _mock_profile(),
+    )
+    monkeypatch.setattr(
+        retrieval_agent,
+        "fetch_candidates",
+        lambda filters, limit=100: _mock_candidates(),
+    )
+    monkeypatch.setattr(retrieval_agent, "detect_conflicts", lambda candidates: [])
+
+    state = AgentState(
+        user_query="Em duoc 27 diem A00 muon hoc Cong nghe thong tin o HUST",
+        admission_year=2026,
+    )
+    result = graph.invoke(state)
+
+    assert result["final_answer"]
+    assert "Profile:" in result["final_answer"]
+    assert result["uncertainty_reasons"] == []
+
+    policy = result.get("policy_decision")
+    assert policy is not None
+    assert policy.allow_answer is True
+    assert policy.requires_follow_up is False
+
+
+def test_advisory_flow_surfaces_uncertainty_for_policy_ambiguity(monkeypatch):
+    class FakeGateway:
+        def __init__(self):
+            self.requests = []
+
+        def run(self, request):
+            self.requests.append(request)
+            return InferenceResult(
+                agent_name=request.agent_name,
+                model="gemini-2.5-flash",
+                provider="fake",
+                content=(
+                    '{"warnings":["Ambiguous quota wording."],'
+                    '"requires_human_verification":true}'
+                ),
+                parsed_data={
+                    "warnings": ["Ambiguous quota wording."],
+                    "requires_human_verification": True,
+                },
             )
-        else:
-            monkeypatch.setattr(
-                retrieval_agent, "fetch_candidates", lambda filters, limit=100: _mock_candidates()
-            )
-        monkeypatch.setattr(retrieval_agent, "detect_conflicts", lambda candidates: [])
 
-        state = AgentState(user_query=case["query"], admission_year=2026)
-        result = graph.invoke(state)
+    fake_gateway = FakeGateway()
 
-        assert result["final_answer"]
-        assert "Profile:" in result["final_answer"]
+    monkeypatch.setattr(
+        profile_agent_module,
+        "build_profile_with_gateway",
+        lambda user_query, gateway: _mock_profile(),
+    )
+    monkeypatch.setattr(
+        retrieval_agent,
+        "fetch_candidates",
+        lambda filters, limit=100: _mock_candidates(),
+    )
+    monkeypatch.setattr(
+        retrieval_agent,
+        "detect_conflicts",
+        lambda candidates: ["Quota conflict for Khoa hoc May tinh at HUST"],
+    )
+    monkeypatch.setattr(policy_agent_module, "build_default_gateway", lambda: fake_gateway)
 
-        policy = result.get("policy_decision")
-        assert policy is not None
-        assert policy.allow_answer is True
+    state = AgentState(
+        user_query="Em duoc 27 diem A00 muon hoc Cong nghe thong tin o HUST",
+        admission_year=2026,
+    )
+    result = graph.invoke(state)
 
-        if case["expect_follow_up"]:
-            assert policy.requires_follow_up is True
-            assert "Thong tin can bo sung" in result["final_answer"]
-        else:
-            assert isinstance(policy.requires_follow_up, bool)
+    policy = result["policy_decision"]
+    assert "retrieval_conflicts_detected" in policy.policy_flags
+    assert "Ambiguous quota wording." in policy.warnings
+    assert result["uncertainty_reasons"] == ["policy_ambiguity_requires_verification"]
 
-        if case["id"] == "definitive_claim_prompt":
-            assert "no_definitive_admission_answer" in policy.blocked_claims
+    assert len(fake_gateway.requests) == 1
+    assert fake_gateway.requests[0].agent_name == "policy_agent"
+    assert fake_gateway.requests[0].task_type == "policy_ambiguity"
 
 
 def test_advisory_flow_handles_empty_retrieval(monkeypatch):
+    monkeypatch.setattr(
+        profile_agent_module,
+        "build_profile_with_gateway",
+        lambda user_query, gateway: _mock_profile(),
+    )
     monkeypatch.setattr(retrieval_agent, "fetch_candidates", lambda filters, limit=100: [])
     monkeypatch.setattr(retrieval_agent, "detect_conflicts", lambda candidates: [])
 
