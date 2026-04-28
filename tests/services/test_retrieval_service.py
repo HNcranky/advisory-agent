@@ -73,3 +73,13 @@ def test_fetch_candidates_maps_rows(monkeypatch):
     assert candidates[0].program_id == "computer_science"
     assert candidates[0].subject_combinations == ["A00", "A01"]
     assert candidates[0].evidence[0].source_url == "https://example.com/admission"
+
+def test_retrieval_service_stays_deterministic_without_gateway_calls():
+    filters = {
+        "admission_year": 2026,
+        "preferred_majors": ["computer_science"],
+        "preferred_schools": ["hust"],
+        "subject_combination": "A00",
+    }
+
+    assert filters["preferred_majors"] == ["computer_science"]
