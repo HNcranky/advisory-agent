@@ -20,3 +20,14 @@ class ChatMessageRecord(BaseModel):
 class ChatSessionSnapshot(BaseModel):
     session: Any
     messages: List[ChatMessageRecord] = Field(default_factory=list)
+    
+class ChatProfileState(BaseModel):
+    admission_year: Optional[int] = None
+    total_score: Optional[float] = None
+    subject_combination: Optional[str] = None
+    preferred_majors: List[str] = Field(default_factory=list)
+    preferred_schools: List[str] = Field(default_factory=list)
+    location_preference: Optional[str] = None
+    tuition_budget: Optional[str] = None
+    constraints: List[str] = Field(default_factory=list)
+    missing_slots: List[str] = Field(default_factory=list)
