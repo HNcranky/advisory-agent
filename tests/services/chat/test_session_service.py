@@ -1,0 +1,39 @@
+from services.chat.models import ChatMessageRecord
+from services.chat.session_service import AnonymousSessionService
+
+
+class FakeRepository:
+    def __init__(self):
+        self.session = None
+        self.messages = []
+
+    def create_session(self, session_token):
+        self.session = {
+            "id": 1,
+            "session_token": session_token,
+            "status": "collecting_profile",
+            "profile_state_json": {},
+            "latest_run_id": None,
+        }
+        return self.session
+
+    def append_message(self, session_token, role, content, kind="chat"):
+        message = ChatMessageRecord(
+            id=len(self.messages) + 1,
+            session_token=session_token,
+            role=role,
+            kind=kind,
+            content=content,
+        )
+        self.messages.append(message)
+        return message
+
+
+def test_start_session_creates_welcome_message():
+    service = AnonymousSessionService(repository=FakeRepository())
+
+    snapshot = service.start_session()
+
+    assert snapshot.session["status"] == "collecting_profile"
+    assert snapshot.messages[0].role == "assistant"
+    assert "cho minh biet diem" in snapshot.messages[0].content.lower()
