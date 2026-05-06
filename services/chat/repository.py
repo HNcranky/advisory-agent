@@ -1,5 +1,5 @@
 from services.chat.db import get_db_connection
-from services.chat.models import ChatSessionRecord, ChatMessageRecord
+from services.chat.models import ChatSessionRecord, ChatMessageRecord, ChatProfileState
 
 
 class ChatSessionRepository:
@@ -104,3 +104,23 @@ class ChatSessionRepository:
             )
             for row in rows
         ]
+    
+    def get_profile_state(self, session_token: str):
+        session = self.get_session_by_token(session_token)
+        return ChatProfileState(**session.profile_state_json) if session else ChatProfileState()
+    
+    def update_profile_state(self, session_token: str, profile_state, status: str):
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE chat_sessions
+            SET profile_state_json = %s, status = %s, updated_at = NOW()
+            WHERE session_token = %s
+            """,
+            (profile_state.model_dump(mode = "json"), status, session_token),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return profile_state
