@@ -31,3 +31,10 @@ class ChatProfileState(BaseModel):
     tuition_budget: Optional[str] = None
     constraints: List[str] = Field(default_factory=list)
     missing_slots: List[str] = Field(default_factory=list)
+    
+class ConversationTurnResult(BaseModel):
+    session_status: str
+    assistant_message: str
+    should_start_run: bool = False
+    profile_state: ChatProfileState
+    
