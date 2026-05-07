@@ -2,26 +2,36 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Turn raw user messages into progressively richer structured profile state and respond with one focused follow-up question at a time.
+**Goal:** Turn raw user chat messages into progressively richer structured profile state and return exactly one focused follow-up question until the session is ready for advisory execution.
 
-**Architecture:** Reuse the existing `build_profile_with_gateway()` service for per-turn extraction, then merge its output into a chat-specific profile state model that also tracks admission year and missing critical slots. Keep the orchestration inside a new conversation service so the HTTP routes stay thin and the advisory graph remains untouched in this phase.
+**Architecture:** Reuse `build_profile_with_gateway()` for per-turn extraction, then merge that extraction into a chat-owned `ChatProfileState` model that tracks admission year plus the ordered list of critical missing slots. Keep the decision boundary in `ConversationService`: this phase may persist a `ready` session and return `should_start_run=True`, but it must not create or dispatch advisory runs yet.
 
-**Tech Stack:** Python, Pydantic, existing Gemini gateway, `pytest`, `monkeypatch`
+**Tech Stack:** Python, FastAPI, Pydantic, existing Gemini gateway, `pytest`, `monkeypatch`, `fastapi.testclient`
 
 ---
 
 ## Planned File Structure
 
 - `services/chat/models.py`
-  - Add `ChatProfileState` and `ConversationTurnResult`.
+  - Keep chat-specific response and profile-state models in one place.
 - `services/chat/profile_state_service.py`
-  - Merge extracted fields, compute missing slots, and choose the next follow-up question.
+  - Own merge rules, admission-year extraction, missing-slot ordering, and follow-up question selection.
+- `services/chat/repository.py`
+  - Read and persist `profile_state_json` and session status for each turn.
 - `services/chat/conversation_service.py`
-  - Persist messages, update profile state, and decide whether the session is still collecting or ready.
+  - Append user/assistant transcript messages, merge state, and decide between follow-up versus ready.
 - `web/routes/chat_api.py`
-  - Upgrade message POST handling to call the conversation service.
+  - Expose the message POST endpoint for an existing session.
+- `web/app.py`
+  - Mount the chat router so the new message endpoint is reachable.
+- `tests/services/chat/test_profile_state_service.py`
+  - Lock merge semantics, slot ordering, and prompt selection.
+- `tests/services/chat/test_conversation_service.py`
+  - Lock the state-machine boundary: follow-up path versus ready path.
+- `tests/web/test_chat_session_api.py`
+  - Lock the HTTP contract for posting a chat message.
 
-### Task 1: Add Profile-State Merge And Missing-Slot Logic
+### Task 1: Add Deterministic Profile-State Merge Logic
 
 **Files:**
 - Modify: `services/chat/models.py`
@@ -39,15 +49,21 @@ from services.chat.profile_state_service import (
 )
 
 
-def test_merge_profile_state_updates_fields_and_computes_missing_slots():
-    current = ChatProfileState()
+def test_merge_profile_state_keeps_previous_values_and_orders_missing_slots():
+    current = ChatProfileState(
+        admission_year=2026,
+        preferred_majors=["computer_science"],
+    )
     extracted = StudentProfile(
         total_score=27.0,
-        preferred_majors=["computer_science"],
         location_preference="Ha Noi",
     )
 
-    merged = merge_profile_state(current, extracted, "Em xet tuyen nam 2026")
+    merged = merge_profile_state(
+        current,
+        extracted,
+        "Em duoc khoang 27 diem va muon hoc tai Ha Noi",
+    )
 
     assert merged.admission_year == 2026
     assert merged.total_score == 27.0
@@ -55,20 +71,56 @@ def test_merge_profile_state_updates_fields_and_computes_missing_slots():
     assert merged.location_preference == "Ha Noi"
     assert merged.missing_slots == []
     assert next_follow_up_question(merged) is None
+
+
+def test_merge_profile_state_returns_first_missing_slot_prompt():
+    merged = merge_profile_state(
+        ChatProfileState(),
+        StudentProfile(preferred_majors=["kinh_te"]),
+        "Em muon hoc khoi kinh te",
+    )
+
+    assert merged.missing_slots == [
+        "admission_year",
+        "total_score",
+        "location_preference",
+    ]
+    assert next_follow_up_question(merged) == "Ban dang xet tuyen cho nam nao?"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/services/chat/test_profile_state_service.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'services.chat.profile_state_service'`
+Expected: FAIL because `merge_profile_state()` and `next_follow_up_question()` do not yet preserve prior values and ordered missing-slot behavior exactly as asserted.
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```python
 # services/chat/models.py
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+
+class ChatSessionRecord(BaseModel):
+    id: int
+    session_token: str
+    status: str = "collecting_profile"
+    profile_state_json: Dict[str, Any] = Field(default_factory=dict)
+    latest_run_id: Optional[int] = None
+
+
+class ChatMessageRecord(BaseModel):
+    id: int
+    session_token: str
+    role: str
+    kind: str = "chat"
+    content: str
+
+
+class ChatSessionSnapshot(BaseModel):
+    session: Any
+    messages: List[ChatMessageRecord] = Field(default_factory=list)
 
 
 class ChatProfileState(BaseModel):
@@ -99,12 +151,24 @@ CRITICAL_SLOT_ORDER = [
 ]
 
 
-def _extract_admission_year(raw_message: str):
+FOLLOW_UP_PROMPTS = {
+    "admission_year": "Ban dang xet tuyen cho nam nao?",
+    "total_score": "Tong diem hoac muc diem uoc tinh cua ban la bao nhieu?",
+    "preferred_majors": "Ban quan tam nhat den nganh nao?",
+    "location_preference": "Ban muon hoc o khu vuc hay thanh pho nao?",
+}
+
+
+def _extract_admission_year(raw_message: str) -> int | None:
     match = re.search(r"\b20\d{2}\b", raw_message)
     return int(match.group(0)) if match else None
 
 
-def merge_profile_state(current: ChatProfileState, extracted: StudentProfile, raw_message: str) -> ChatProfileState:
+def merge_profile_state(
+    current: ChatProfileState,
+    extracted: StudentProfile,
+    raw_message: str,
+) -> ChatProfileState:
     merged = ChatProfileState(
         admission_year=_extract_admission_year(raw_message) or current.admission_year,
         total_score=extracted.total_score or current.total_score,
@@ -123,14 +187,10 @@ def merge_profile_state(current: ChatProfileState, extracted: StudentProfile, ra
     return merged
 
 
-def next_follow_up_question(state: ChatProfileState):
-    prompts = {
-        "admission_year": "Ban dang xet tuyen cho nam nao?",
-        "total_score": "Tong diem hoac muc diem uoc tinh cua ban la bao nhieu?",
-        "preferred_majors": "Ban quan tam nhat den nganh nao?",
-        "location_preference": "Ban muon hoc o khu vuc hay thanh pho nao?",
-    }
-    return prompts.get(state.missing_slots[0]) if state.missing_slots else None
+def next_follow_up_question(state: ChatProfileState) -> str | None:
+    if not state.missing_slots:
+        return None
+    return FOLLOW_UP_PROMPTS[state.missing_slots[0]]
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -145,14 +205,13 @@ git add services/chat/models.py services/chat/profile_state_service.py tests/ser
 git commit -m "feat: add chat profile-state merge logic"
 ```
 
-### Task 2: Add Conversation Service And Follow-Up Message Endpoint
+### Task 2: Add Conversation State-Machine Orchestration
 
 **Files:**
+- Modify: `services/chat/models.py`
 - Modify: `services/chat/repository.py`
-- Create: `services/chat/conversation_service.py`
-- Modify: `web/routes/chat_api.py`
+- Create or Modify: `services/chat/conversation_service.py`
 - Test: `tests/services/chat/test_conversation_service.py`
-- Test: `tests/web/test_chat_session_api.py`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -190,17 +249,45 @@ def test_handle_user_message_returns_follow_up_when_score_missing():
         ),
     )
 
-    result = service.handle_user_message("session-123", "Em muon hoc CNTT tai Ha Noi nam 2026")
+    result = service.handle_user_message(
+        "session-123",
+        "Em muon hoc CNTT tai Ha Noi nam 2026",
+    )
 
     assert result.session_status == "collecting_profile"
     assert result.should_start_run is False
+    assert result.profile_state.missing_slots == ["total_score"]
+    assert repo.messages[-1][1] == "assistant_follow_up"
     assert "bao nhieu" in result.assistant_message.lower()
+
+
+def test_handle_user_message_marks_session_ready_without_dispatching_run():
+    repo = FakeRepository()
+    service = ConversationService(
+        repository=repo,
+        extract_profile=lambda text: StudentProfile(
+            total_score=27.0,
+            preferred_majors=["computer_science"],
+            location_preference="Ha Noi",
+        ),
+    )
+
+    result = service.handle_user_message(
+        "session-123",
+        "Em muon hoc CNTT tai Ha Noi nam 2026 va duoc 27 diem",
+    )
+
+    assert result.session_status == "ready"
+    assert result.should_start_run is True
+    assert result.profile_state.missing_slots == []
+    assert repo.status == "ready"
+    assert repo.messages[-1][1] == "assistant_ready"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/services/chat/test_conversation_service.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'services.chat.conversation_service'`
+Expected: FAIL because the ready-path assertions and persisted status/message kind are not yet covered or do not match the implementation exactly.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -215,6 +302,14 @@ class ConversationTurnResult(BaseModel):
 
 ```python
 # services/chat/repository.py
+from services.chat.db import get_db_connection
+from services.chat.models import ChatMessageRecord, ChatProfileState, ChatSessionRecord
+
+
+class ChatSessionRepository:
+    def __init__(self, connection_factory=get_db_connection):
+        self.connection_factory = connection_factory
+
     def get_profile_state(self, session_token: str):
         session = self.get_session_by_token(session_token)
         return ChatProfileState(**session.profile_state_json) if session else ChatProfileState()
@@ -245,6 +340,9 @@ from services.chat.repository import ChatSessionRepository
 from services.profile_inference_service import build_profile_with_gateway
 
 
+READY_MESSAGE = "Cam on ban. Minh da co du thong tin va se bat dau phan tich."
+
+
 class ConversationService:
     def __init__(self, repository=None, extract_profile=None):
         self.repository = repository or ChatSessionRepository()
@@ -263,7 +361,12 @@ class ConversationService:
         follow_up = next_follow_up_question(merged)
         if follow_up:
             self.repository.update_profile_state(session_token, merged, "collecting_profile")
-            self.repository.append_message(session_token, "assistant", follow_up, "assistant_follow_up")
+            self.repository.append_message(
+                session_token,
+                "assistant",
+                follow_up,
+                "assistant_follow_up",
+            )
             return ConversationTurnResult(
                 session_status="collecting_profile",
                 assistant_message=follow_up,
@@ -271,22 +374,127 @@ class ConversationService:
                 profile_state=merged,
             )
 
-        ready_message = "Cam on ban. Minh da co du thong tin va se bat dau phan tich."
         self.repository.update_profile_state(session_token, merged, "ready")
-        self.repository.append_message(session_token, "assistant", ready_message, "assistant_ready")
+        self.repository.append_message(
+            session_token,
+            "assistant",
+            READY_MESSAGE,
+            "assistant_ready",
+        )
         return ConversationTurnResult(
             session_status="ready",
-            assistant_message=ready_message,
+            assistant_message=READY_MESSAGE,
             should_start_run=True,
             profile_state=merged,
         )
 ```
 
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest tests/services/chat/test_conversation_service.py -v`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add services/chat/models.py services/chat/repository.py services/chat/conversation_service.py tests/services/chat/test_conversation_service.py
+git commit -m "feat: add chat follow-up decision service"
+```
+
+### Task 3: Expose The Message Endpoint Through FastAPI
+
+**Files:**
+- Modify: `web/routes/chat_api.py`
+- Modify: `web/app.py`
+- Test: `tests/web/test_chat_session_api.py`
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+from fastapi.testclient import TestClient
+
+from services.chat.models import ChatProfileState, ConversationTurnResult
+from web.app import build_app
+
+
+def test_post_message_returns_follow_up_payload(monkeypatch):
+    client = TestClient(build_app())
+
+    class FakeService:
+        def handle_user_message(self, session_token, content):
+            assert session_token == "session-123"
+            assert content == "Em muon hoc CNTT"
+            return ConversationTurnResult(
+                session_status="collecting_profile",
+                assistant_message="Tong diem hoac muc diem uoc tinh cua ban la bao nhieu?",
+                should_start_run=False,
+                profile_state=ChatProfileState(
+                    admission_year=2026,
+                    preferred_majors=["computer_science"],
+                    location_preference="Ha Noi",
+                    missing_slots=["total_score"],
+                ),
+            )
+
+    monkeypatch.setattr("web.routes.chat_api.get_conversation_service", lambda: FakeService())
+
+    response = client.post(
+        "/api/sessions/session-123/messages",
+        json={"content": "Em muon hoc CNTT"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["session_status"] == "collecting_profile"
+    assert body["should_start_run"] is False
+    assert body["profile_state"]["missing_slots"] == ["total_score"]
+
+
+def test_post_message_returns_ready_payload(monkeypatch):
+    client = TestClient(build_app())
+
+    class FakeService:
+        def handle_user_message(self, session_token, content):
+            return ConversationTurnResult(
+                session_status="ready",
+                assistant_message="Cam on ban. Minh da co du thong tin va se bat dau phan tich.",
+                should_start_run=True,
+                profile_state=ChatProfileState(
+                    admission_year=2026,
+                    total_score=27.0,
+                    preferred_majors=["computer_science"],
+                    location_preference="Ha Noi",
+                    missing_slots=[],
+                ),
+            )
+
+    monkeypatch.setattr("web.routes.chat_api.get_conversation_service", lambda: FakeService())
+
+    response = client.post(
+        "/api/sessions/session-123/messages",
+        json={"content": "Em muon hoc CNTT tai Ha Noi nam 2026 va duoc 27 diem"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["should_start_run"] is True
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/web/test_chat_session_api.py -v`
+Expected: FAIL with `404 Not Found` for `/api/sessions/session-123/messages` until the chat router is mounted and the route exists.
+
+- [ ] **Step 3: Write minimal implementation**
+
 ```python
 # web/routes/chat_api.py
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from services.chat.conversation_service import ConversationService
+
+
+router = APIRouter(prefix="/api/sessions", tags=["chat"])
 
 
 class ChatMessageCreate(BaseModel):
@@ -304,29 +512,46 @@ def post_message(session_token: str, payload: ChatMessageCreate):
     return result.model_dump()
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+```python
+# web/app.py
+from fastapi import FastAPI
 
-Run: `pytest tests/services/chat/test_conversation_service.py tests/web/test_chat_session_api.py -v`
+from web.routes.chat_api import router as chat_router
+from web.routes.system import router as system_router
+
+
+def build_app() -> FastAPI:
+    app = FastAPI(title="Student Advisory Chat")
+    app.include_router(system_router)
+    app.include_router(chat_router)
+    return app
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest tests/web/test_chat_session_api.py -v`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services/chat/repository.py services/chat/conversation_service.py web/routes/chat_api.py tests/services/chat/test_conversation_service.py tests/web/test_chat_session_api.py
-git commit -m "feat: add chat follow-up orchestration"
+git add web/routes/chat_api.py web/app.py tests/web/test_chat_session_api.py
+git commit -m "feat: add chat message api endpoint"
 ```
 
 ## Self-Review
 
 Spec coverage in this plan:
-- Progressive profile capture: covered by Task 1.
-- One-question-at-a-time follow-up flow: covered by Task 2.
-- Session layer decision boundary before full runs: covered by Task 2.
+- Progressive profile capture from natural-language input: covered by Task 1.
+- One-targeted-follow-up-question-at-a-time behavior: covered by Task 1 and Task 2.
+- Session-level decision boundary between `collecting_profile` and `ready`: covered by Task 2.
+- Public message-flow API coverage for an existing session: covered by Task 3.
+- Explicit non-dispatch behavior in this phase: covered by Task 2 and Task 3 through `should_start_run` only.
 
 Intentional exclusions from this plan:
-- No advisory graph execution yet.
-- No background run persistence yet.
-- No public HTML UI yet.
+- No advisory run record creation yet.
+- No background execution or graph invocation yet.
+- No public HTML chat UI yet.
 
 Plan complete and saved to `docs/superpowers/plans/2026-05-01-student-advisory-chat-v1/03-profile-state-and-follow-up-orchestration.md`. Two execution options:
 
