@@ -74,3 +74,29 @@ def test_profile_agent_uses_injected_gateway():
         missing_slots=["total_score"],
     )
     assert output.retrieval_missing_data == ["total_score"]
+
+def test_profile_agent_reuses_seeded_student_profile(monkeypatch):
+    seeded = StudentProfile(
+        total_score=27.0,
+        preferred_majors=["computer_science"],
+        location_preference="Ha Noi",
+        missing_slots=[],
+    )
+
+    monkeypatch.setattr(
+        profile_agent_module,
+        "build_profile_with_gateway",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("unexpected call")),
+    )
+
+    state = AgentState(
+        user_query="ignored",
+        admission_year=2026,
+        student_profile=seeded,
+        profile_seeded=True,
+    )
+
+    result = profile_agent_module.profile_agent(state)
+
+    assert result.student_profile == seeded
+    assert result.retrieval_missing_data == []
