@@ -124,3 +124,76 @@ class ChatSessionRepository:
         cur.close()
         conn.close()
         return profile_state
+    
+    def create_run(self, session_token: str, profile_state):
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO chat_advisory_runs (session_id, profile_snapshot_json)
+            SELECT id, %s
+            FROM chat_sessions
+            WHERE session_token = %s
+            RETURNING id
+            """,
+            (profile_state.model_dump(mode="json"), session_token)
+        )
+        
+        run_id = cur.fetchone()[0]
+        cur.execute(
+            """
+            UPDATE chat_sessions
+            SET latest_run_id = %s, status = 'running', updated_at = NOW()
+            WHERE session_token = %s
+            """,
+            (run_id, session_token),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return run_id
+    
+    def mark_run_running(self, run_id: int):
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE chat_advisory_runs
+            SET status = 'running', started_at = NOW()
+            WHERE id = %s
+            """,
+            (run_id,),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+    def complete_run(self, run_id: int, result_json, final_answer: str):
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE chat_advisory_runs
+            SET status = 'completed', result_json = %s, final_answer = %s, completed_at = NOW()
+            WHERE id = %s
+            """,
+            (result_json, final_answer, run_id)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+    def update_session_status(self, session_token: str, status: str):
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE chat_sessions
+            SET status = %s, updated_at = NOW()
+            WHERE session_token = %s
+            """,
+            (status, session_token),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()

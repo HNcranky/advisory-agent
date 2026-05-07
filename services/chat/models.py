@@ -38,3 +38,11 @@ class ConversationTurnResult(BaseModel):
     should_start_run: bool = False
     profile_state: ChatProfileState
     
+class AdvisoryRunRecord(BaseModel):
+    id: int
+    session_token: str
+    status: str
+    result_json: Optional[Dict[str, Any]] = None
+    final_answer: Optional[str] = None
+
+    
