@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block body %}
+<main class="chat-shell">
+  <section class="chat-panel">
+    <h1>Student Advisory Chat</h1>
+    <div id="chat-transcript"></div>
+    <form id="chat-form">
+      <textarea id="chat-input" name="content"></textarea>
+      <button type="submit">Gui</button>
+    </form>
+  </section>
+  <aside class="summary-panel">
+    <div id="profile-summary"></div>
+    <div id="recommendation-panel"></div>
+  </aside>
+</main>
+{% endblock %}
