@@ -1,6 +1,9 @@
 from pydantic import BaseModel
+from fastapi import APIRouter
 
 from services.chat.conversation_service import ConversationService
+
+router = APIRouter(prefix="/api/sessions", tags=["chat"])
 
 class ChatMessageCreate(BaseModel):
     content: str
