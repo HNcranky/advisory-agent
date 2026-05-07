@@ -22,6 +22,7 @@ class AgentState(BaseModel):
     chat_history: List[str] = Field(default_factory=list)
     intent: Optional[str] = None
     admission_year: int = ADMISSION_YEAR
+    profile_seeded: bool = False
 
     student_profile: StudentProfile = Field(default_factory=StudentProfile)
     retrieval_filters: Dict[str, Any] = Field(default_factory=dict)
