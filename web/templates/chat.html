@@ -2,16 +2,37 @@
 {% block body %}
 <main class="chat-shell">
   <section class="chat-panel">
-    <h1>Student Advisory Chat</h1>
-    <div id="chat-transcript"></div>
-    <form id="chat-form">
-      <textarea id="chat-input" name="content"></textarea>
-      <button type="submit">Gui</button>
+    <header class="chat-header">
+      <h1>Student Advisory Chat</h1>
+      <button id="reset-session" type="button" class="secondary-button">Bat dau lai</button>
+    </header>
+
+    <div id="chat-status" class="chat-status" aria-live="polite"></div>
+    <div id="chat-transcript" class="chat-transcript" aria-live="polite"></div>
+
+    <form id="chat-form" class="chat-form">
+      <label for="chat-input" class="sr-only">Noi dung tin nhan</label>
+      <textarea
+        id="chat-input"
+        name="content"
+        rows="4"
+        placeholder="Vi du: Em muon hoc CNTT o Ha Noi nam 2026, du kien duoc 27 diem."
+      ></textarea>
+      <div class="chat-actions">
+        <button id="send-button" type="submit">Gui</button>
+      </div>
     </form>
   </section>
+
   <aside class="summary-panel">
-    <div id="profile-summary"></div>
-    <div id="recommendation-panel"></div>
+    <section>
+      <h2>Ho so tam thoi</h2>
+      <div id="profile-summary"></div>
+    </section>
+    <section>
+      <h2>Khuyen nghi moi nhat</h2>
+      <div id="recommendation-panel"></div>
+    </section>
   </aside>
 </main>
 {% endblock %}
