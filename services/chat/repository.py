@@ -85,7 +85,7 @@ class ChatSessionRepository:
             """
             SELECT m.id, s.session_token, m.role, m.kind, m.content
             FROM chat_messages m
-            JOIN chat_Sessions s ON s.id = m.mession_id
+            JOIN chat_sessions s ON s.id = m.session_id
             WHERE s.session_token = %s
             ORDER BY m.created_at ASC, m.id ASC
             """,
