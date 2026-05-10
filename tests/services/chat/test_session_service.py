@@ -27,7 +27,12 @@ class FakeRepository:
         )
         self.messages.append(message)
         return message
+    
+    def get_session_by_token(self, session_token):
+        return self.session
 
+    def list_message(self, session_token):
+        return self.messages
 
 def test_start_session_creates_welcome_message():
     service = AnonymousSessionService(repository=FakeRepository())
@@ -37,3 +42,13 @@ def test_start_session_creates_welcome_message():
     assert snapshot.session["status"] == "collecting_profile"
     assert snapshot.messages[0].role == "assistant"
     assert "cho minh biet diem" in snapshot.messages[0].content.lower()
+
+def test_get_session_snapshot_returns_existing_messages():
+    repository = FakeRepository()
+    service = AnonymousSessionService(repository=repository)
+    snapshot = service.start_session()
+
+    fetched = service.get_session_snapshot(snapshot.session["session_token"])
+
+    assert fetched.session["session_token"] == snapshot.session["session_token"]
+    assert fetched.messages[0].kind == "assistant_welcome"
