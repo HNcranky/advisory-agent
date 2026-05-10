@@ -68,3 +68,30 @@ body {
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
+
+.chat-status[data-tone="pending"] {
+  color: #8a5b18;
+}
+
+.chat-status[data-tone="success"] {
+  color: #24613c;
+}
+
+.chat-status[data-tone="error"] {
+  color: #9f2d2d;
+}
+
+.message {
+  padding: 14px 16px;
+  border-radius: 16px;
+  line-height: 1.5;
+}
+
+.message--assistant {
+  background: #f3eee4;
+}
+
+.message--user {
+  background: #dfeaf7;
+  justify-self: end;
+}
