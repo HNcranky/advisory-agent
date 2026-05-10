@@ -1,3 +1,6 @@
+from psycopg2.extras import Json
+
+from services.chat.models import ChatProfileState
 from services.chat.repository import ChatSessionRepository
 
 
@@ -69,3 +72,26 @@ def test_list_message_returns_transcript_in_order():
     sql = connection.cursor_obj.statements[0][0]
     assert "JOIN chat_sessions s ON s.id = m.session_id" in sql
     assert "WHERE s.session_token = %s" in sql
+
+
+def test_repository_wraps_jsonb_payloads_with_psycopg2_json_adapter():
+    connection = FakeConnection()
+    repo = ChatSessionRepository(connection_factory=lambda: connection)
+    profile_state = ChatProfileState(
+        admission_year=2026,
+        preferred_majors=["computer_science"],
+        missing_slots=["total_score"],
+    )
+
+    repo.update_profile_state("session-123", profile_state, "collecting_profile")
+    repo.create_run("session-123", profile_state)
+    repo.complete_run(7, {"final_answer": "ok", "profile_state": profile_state}, "ok")
+
+    update_params = connection.cursor_obj.statements[0][1]
+    create_run_params = connection.cursor_obj.statements[1][1]
+    complete_run_params = connection.cursor_obj.statements[3][1]
+
+    assert isinstance(update_params[0], Json)
+    assert isinstance(create_run_params[0], Json)
+    assert isinstance(complete_run_params[0], Json)
+    assert complete_run_params[0].adapted["profile_state"]["admission_year"] == 2026

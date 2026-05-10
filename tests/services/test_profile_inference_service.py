@@ -29,3 +29,23 @@ def test_build_profile_with_gateway_returns_student_profile():
     assert profile.subject_combination == "A00"
     assert profile.preferred_majors == ["computer_science"]
     assert profile.preferred_schools == ["hust"]
+
+
+def test_build_profile_with_gateway_falls_back_when_gateway_is_unavailable():
+    class UnavailableGateway:
+        def is_available(self):
+            return False
+
+        def run(self, request):
+            raise AssertionError("gateway.run should not be called when unavailable")
+
+    profile = build_profile_with_gateway(
+        user_query="Em duoc 27 diem A00 muon hoc Cong nghe thong tin o HUST",
+        gateway=UnavailableGateway(),
+    )
+
+    assert profile.total_score == 27
+    assert profile.subject_combination == "A00"
+    assert profile.preferred_majors == ["computer_science"]
+    assert profile.preferred_schools == ["hust"]
+    assert profile.missing_slots == []

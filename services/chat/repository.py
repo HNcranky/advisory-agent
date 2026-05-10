@@ -1,3 +1,6 @@
+from fastapi.encoders import jsonable_encoder
+from psycopg2.extras import Json
+
 from services.chat.db import get_db_connection
 from services.chat.models import ChatSessionRecord, ChatMessageRecord, ChatProfileState
 
@@ -5,6 +8,9 @@ from services.chat.models import ChatSessionRecord, ChatMessageRecord, ChatProfi
 class ChatSessionRepository:
     def __init__(self, connection_factory=get_db_connection):
         self.connection_factory = connection_factory
+
+    def _jsonb(self, value):
+        return Json(jsonable_encoder(value))
 
     def create_session(self, session_token: str) -> ChatSessionRecord:
         conn = self.connection_factory()
@@ -118,7 +124,7 @@ class ChatSessionRepository:
             SET profile_state_json = %s, status = %s, updated_at = NOW()
             WHERE session_token = %s
             """,
-            (profile_state.model_dump(mode = "json"), status, session_token),
+            (self._jsonb(profile_state), status, session_token),
         )
         conn.commit()
         cur.close()
@@ -136,7 +142,7 @@ class ChatSessionRepository:
             WHERE session_token = %s
             RETURNING id
             """,
-            (profile_state.model_dump(mode="json"), session_token)
+            (self._jsonb(profile_state), session_token)
         )
         
         run_id = cur.fetchone()[0]
@@ -177,7 +183,7 @@ class ChatSessionRepository:
             SET status = 'completed', result_json = %s, final_answer = %s, completed_at = NOW()
             WHERE id = %s
             """,
-            (result_json, final_answer, run_id)
+            (self._jsonb(result_json), final_answer, run_id)
         )
         conn.commit()
         cur.close()
