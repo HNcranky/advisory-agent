@@ -23,3 +23,13 @@ def test_chat_client_supports_snapshot_refresh_and_run_polling():
     assert "function schedulePolling" in script
     assert "window.localStorage" in script
     assert "`/api/sessions/${sessionToken}`" in script
+    
+    
+def test_chat_client_clears_stale_session_token_and_reports_startup_errors():
+    script = Path("web/static/js/chat.js").read_text(encoding="utf-8")
+    styles = Path("web/static/css/chat.css").read_text(encoding="utf-8")
+
+    assert "window.localStorage.removeItem(SESSION_KEY)" in script
+    assert 'setStatus("Khong the khoi tao phien chat.", "error")' in script
+    assert ".chat-status[data-tone=\"error\"]" in styles
+    assert ".message--assistant" in styles

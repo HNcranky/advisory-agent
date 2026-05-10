@@ -91,8 +91,15 @@ async function ensureSession() {
   if (!stored) {
     return createSession();
   }
-  currentSessionToken = stored;
-  return fetchSessionSnapshot(stored);
+
+  try {
+    currentSessionToken = stored;
+    return await fetchSessionSnapshot(stored);
+  } catch (error) {
+    window.localStorage.removeItem(SESSION_KEY);
+    currentSessionToken = null;
+    return createSession();
+  }
 }
 
 function stopPolling() {
@@ -139,29 +146,39 @@ document.addEventListener("DOMContentLoaded", async () => {
   const input = document.getElementById("chat-input");
   const resetButton = document.getElementById("reset-session");
 
-  const bootstrap = await ensureSession();
-  renderSnapshot(bootstrap);
-  setStatus("San sang tu van.", "info");
+  try {
+    const bootstrap = await ensureSession();
+    renderSnapshot(bootstrap);
+    setStatus("San sang tu van.", "info");
+  } catch (error) {
+    setStatus("Khong the khoi tao phien chat.", "error");
+    form.querySelector("button[type='submit']").disabled = true;
+    return;
+  }
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const content = input.value.trim();
     if (!content) return;
 
-    setStatus("Dang gui tin nhan...", "pending");
-    const result = await sendMessage(content);
-    input.value = "";
+    try {
+      setStatus("Dang gui tin nhan...", "pending");
+      const result = await sendMessage(content);
+      input.value = "";
 
-    const snapshot = await fetchSessionSnapshot(currentSessionToken);
-    renderSnapshot(snapshot);
+      const snapshot = await fetchSessionSnapshot(currentSessionToken);
+      renderSnapshot(snapshot);
 
-    if (result.should_start_run) {
-      setStatus("Dang phan tich ho so...", "pending");
-      schedulePolling(currentSessionToken);
-      return;
+      if (result.should_start_run) {
+        setStatus("Dang phan tich ho so...", "pending");
+        schedulePolling(currentSessionToken);
+        return;
+      }
+
+      setStatus("Da nhan cau hoi tiep theo.", "info");
+    } catch (error) {
+      setStatus("Khong gui duoc tin nhan.", "error");
     }
-
-    setStatus("Da nhan cau hoi tiep theo.", "info");
   });
 
   resetButton.addEventListener("click", async () => {
