@@ -25,5 +25,5 @@ class AnonymousSessionService:
     
     def get_session_snapshot(self, session_token: str) -> ChatSessionSnapshot:
         session = self.repository.get_session_by_token(session_token)
-        messages = self.repository.list_message(session_token)
+        messages = self.repository.list_message(session_token) if session else []
         return ChatSessionSnapshot(session=session, messages=messages)
