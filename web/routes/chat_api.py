@@ -1,19 +1,34 @@
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from fastapi import APIRouter
 
 from services.chat.conversation_service import ConversationService
 from services.chat.run_dispatcher import RunDispatcher
+from services.chat.session_service import AnonymousSessionService
 
 router = APIRouter(prefix="/api/sessions", tags=["chat"])
 
 class ChatMessageCreate(BaseModel):
     content: str
     
+def get_session_service():
+    return AnonymousSessionService()
+    
 def get_conversation_service():
     return ConversationService()
 
 def get_run_dispatcher():
     return RunDispatcher()
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+def create_session():
+    return get_session_service().start_session()
+
+@router.get("/{session_token}")
+def get_session(session_token: str):
+    snapshot = get_session_service().get_session_snapshot(session_token)
+    if not snapshot.session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return snapshot
 
 @router.post("/{session_token}/messages")
 def post_message(session_token: str, payload: ChatMessageCreate):
