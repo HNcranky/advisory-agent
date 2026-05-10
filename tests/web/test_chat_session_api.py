@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from services.chat.conversation_service import ConversationService
 from services.chat.models import ChatProfileState, ConversationTurnResult, ChatMessageRecord, ChatSessionSnapshot
 from web.app import build_app
 
@@ -40,7 +41,14 @@ def test_post_message_returns_follow_up_payload(monkeypatch):
 def test_post_message_returns_ready_payload(monkeypatch):
     client = TestClient(build_app())
 
+    class FakeRepository:
+        def create_run(self, session_token, profile_state):
+            return 7
+
     class FakeService:
+        def __init__(self):
+            self.repository = FakeRepository()
+
         def handle_user_message(self, session_token, content):
             return ConversationTurnResult(
                 session_status="ready",
@@ -55,7 +63,12 @@ def test_post_message_returns_ready_payload(monkeypatch):
                 ),
             )
 
+    class FakeDispatcher:
+        def submit(self, session_token, run_id, latest_user_message, profile_state):
+            return None
+
     monkeypatch.setattr("web.routes.chat_api.get_conversation_service", lambda: FakeService())
+    monkeypatch.setattr("web.routes.chat_api.get_run_dispatcher", lambda: FakeDispatcher())
 
     response = client.post(
         "/api/sessions/session-123/messages",
@@ -64,6 +77,54 @@ def test_post_message_returns_ready_payload(monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["should_start_run"] is True
+
+
+def test_post_message_uses_fallback_extractor_when_gateway_is_unavailable(monkeypatch):
+    client = TestClient(build_app())
+
+    class FakeRepository:
+        def __init__(self):
+            self.profile_state = ChatProfileState()
+            self.messages = []
+
+        def append_message(self, session_token, role, content, kind="chat"):
+            self.messages.append((role, kind, content))
+
+        def get_profile_state(self, session_token):
+            return self.profile_state
+
+        def update_profile_state(self, session_token, profile_state, status):
+            self.profile_state = profile_state
+            return profile_state
+
+    class UnavailableGateway:
+        def is_available(self):
+            return False
+
+        def run(self, request):
+            raise AssertionError("gateway.run should not be called when unavailable")
+
+    monkeypatch.setattr(
+        "services.chat.conversation_service.build_default_gateway",
+        lambda: UnavailableGateway(),
+    )
+    monkeypatch.setattr(
+        "web.routes.chat_api.get_conversation_service",
+        lambda: ConversationService(repository=FakeRepository()),
+    )
+
+    response = client.post(
+        "/api/sessions/session-123/messages",
+        json={"content": "Em muon hoc CNTT tai HUST nam 2026"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["session_status"] == "collecting_profile"
+    assert body["should_start_run"] is False
+    assert body["profile_state"]["preferred_majors"] == ["computer_science"]
+    assert body["profile_state"]["preferred_schools"] == ["hust"]
+    assert body["profile_state"]["missing_slots"] == ["total_score", "location_preference"]
     
     
 def test_create_session_endpoint_returns_snapshot(monkeypatch):

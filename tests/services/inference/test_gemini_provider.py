@@ -49,7 +49,9 @@ def test_gemini_provider_uses_google_genai_client(monkeypatch):
     assert result.parsed_data == {"summary": "ok"}
 
 
-def test_gemini_provider_requires_api_key():
+def test_gemini_provider_requires_api_key(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
     provider = GeminiProvider(api_key=None)
     request = InferenceRequest(
         agent_name="profile_agent",

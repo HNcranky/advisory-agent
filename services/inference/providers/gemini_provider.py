@@ -15,6 +15,9 @@ class GeminiProvider:
         self._client = genai.Client(api_key=key) if key else None
         self._api_key_present = bool(key)
 
+    def is_available(self) -> bool:
+        return self._api_key_present
+
     def generate(self, request, policy):
         if not self._api_key_present:
             raise RuntimeError("GEMINI_API_KEY is not configured")

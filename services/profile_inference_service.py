@@ -1,5 +1,6 @@
 from agents.models import StudentProfile
 from services.inference.models import InferenceRequest
+from services.profile_service import build_profile
 
 
 PROFILE_SYSTEM_PROMPT = """
@@ -10,6 +11,9 @@ Use null for unknown scalar values and [] for unknown list values.
 
 
 def build_profile_with_gateway(user_query: str, gateway) -> StudentProfile:
+    if hasattr(gateway, "is_available") and not gateway.is_available():
+        return build_profile(user_query)
+
     result = gateway.run(
         InferenceRequest(
             agent_name="profile_agent",
