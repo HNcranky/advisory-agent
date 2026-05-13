@@ -91,13 +91,18 @@ def verify_tables():
     tables = [row[0] for row in cur.fetchall()]
 
     print(f"\n📋 Tables in '{DB_CONFIG['database']}':")
+    
     expected = [
-        "source_registry",
-        "discovered_resources",
-        "raw_documents",
-        "extracted_facts",
-        "canonical_admission_records",
-    ]
+    "source_registry",
+    "discovered_resources",
+    "raw_documents",
+    "extracted_facts",
+    "canonical_admission_records",
+    "advisory_runs",
+    "chat_sessions",
+    "chat_messages",
+    "chat_advisory_runs",
+]
     for table in expected:
         status = "✅" if table in tables else "❌"
         print(f"  {status} {table}")

@@ -1,0 +1,97 @@
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: linear-gradient(180deg, #f5f1e8 0%, #efe6d8 100%);
+  color: #1f2933;
+}
+
+.chat-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 24px;
+  min-height: 100vh;
+  padding: 32px;
+}
+
+.chat-panel,
+.summary-panel {
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 18px 48px rgba(31, 41, 51, 0.08);
+}
+
+.chat-header,
+.chat-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chat-status {
+  min-height: 24px;
+  margin: 16px 0;
+  font-size: 14px;
+  color: #8a5b18;
+}
+
+.chat-transcript {
+  display: grid;
+  gap: 12px;
+  min-height: 280px;
+  margin-bottom: 16px;
+}
+
+.chat-form textarea {
+  width: 100%;
+  border: 1px solid #d5d9de;
+  border-radius: 14px;
+  padding: 14px;
+  resize: vertical;
+}
+
+.secondary-button {
+  border: 1px solid #c8cdd4;
+  background: #fff;
+  border-radius: 999px;
+  padding: 10px 14px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.chat-status[data-tone="pending"] {
+  color: #8a5b18;
+}
+
+.chat-status[data-tone="success"] {
+  color: #24613c;
+}
+
+.chat-status[data-tone="error"] {
+  color: #9f2d2d;
+}
+
+.message {
+  padding: 14px 16px;
+  border-radius: 16px;
+  line-height: 1.5;
+}
+
+.message--assistant {
+  background: #f3eee4;
+}
+
+.message--user {
+  background: #dfeaf7;
+  justify-self: end;
+}

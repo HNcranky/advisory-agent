@@ -7,6 +7,11 @@ class LLMGateway:
         self.providers = providers or {"gemini": GeminiProvider()}
         self.telemetry = telemetry
 
+    def is_available(self) -> bool:
+        provider = self.providers["gemini"]
+        is_available = getattr(provider, "is_available", None)
+        return True if is_available is None else bool(is_available())
+
     def run(self, request):
         policy = self.registry.resolve(request.agent_name)
         provider = self.providers["gemini"]
