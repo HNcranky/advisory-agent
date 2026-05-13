@@ -1,4 +1,4 @@
-# router/document_router.py
+                           
 """
 Document Router: classifies fetched content into the correct
 DocumentType so the appropriate parser can be selected.
@@ -9,13 +9,13 @@ from ingestion.models.pipeline_models import FetchResult, DocumentType
 
 logger = logging.getLogger(__name__)
 
-# Magic bytes for file type detection
+                                     
 MAGIC_BYTES = {
-    b"%PDF": DocumentType.PDF_TEXT,       # Will be refined later
-    b"PK": DocumentType.DOCX,            # ZIP-based (DOCX, XLSX, etc.)
+    b"%PDF": DocumentType.PDF_TEXT,                              
+    b"PK": DocumentType.DOCX,                                          
 }
 
-# Content-Type to DocumentType mapping
+                                      
 CONTENT_TYPE_MAP = {
     "application/pdf": DocumentType.PDF_TEXT,
     "application/msword": DocumentType.DOCX,
@@ -28,7 +28,7 @@ CONTENT_TYPE_MAP = {
     "image/webp": DocumentType.IMAGE,
 }
 
-# URL patterns
+              
 PDF_EXTENSIONS = (".pdf",)
 DOCX_EXTENSIONS = (".docx", ".doc")
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp")
@@ -53,7 +53,7 @@ def route_document(fetch_result: FetchResult) -> DocumentType:
     """
     doc_type = DocumentType.UNKNOWN
 
-    # ─── Step 1: Content-Type header analysis ───────────────────
+                                                                  
     content_type = fetch_result.content_type.lower().split(";")[0].strip()
 
     if content_type in CONTENT_TYPE_MAP:
@@ -62,7 +62,7 @@ def route_document(fetch_result: FetchResult) -> DocumentType:
             f"Routed by Content-Type '{content_type}' → {doc_type}"
         )
 
-    # ─── Step 2: URL pattern analysis ───────────────────────────
+                                                                  
     if doc_type == DocumentType.UNKNOWN:
         url_lower = fetch_result.final_url.lower()
 
@@ -78,7 +78,7 @@ def route_document(fetch_result: FetchResult) -> DocumentType:
         if doc_type != DocumentType.UNKNOWN:
             logger.debug(f"Routed by URL pattern → {doc_type}")
 
-    # ─── Step 3: Magic bytes detection ──────────────────────────
+                                                                  
     if doc_type == DocumentType.UNKNOWN:
         raw = fetch_result.raw_content[:8]
         for magic, dtype in MAGIC_BYTES.items():
@@ -87,12 +87,12 @@ def route_document(fetch_result: FetchResult) -> DocumentType:
                 logger.debug(f"Routed by magic bytes → {doc_type}")
                 break
 
-    # ─── Step 4: Default ────────────────────────────────────────
+                                                                  
     if doc_type == DocumentType.UNKNOWN:
         doc_type = DocumentType.HTML_ARTICLE
         logger.debug(f"Defaulting to {doc_type}")
 
-    # ─── Step 5: Refine PDF type (text vs scanned) ──────────────
+                                                                  
     if doc_type == DocumentType.PDF_TEXT:
         doc_type = _refine_pdf_type(fetch_result)
 
@@ -125,8 +125,8 @@ def _refine_pdf_type(fetch_result: FetchResult) -> DocumentType:
             text_chars = len(text.strip())
             file_size = len(fetch_result.raw_content)
 
-            # Heuristic: if text content is < 100 chars for a file > 10KB,
-            # it's likely scanned
+                                                                          
+                                 
             if file_size > 10_000 and text_chars < 100:
                 logger.debug(
                     f"PDF classified as scanned "

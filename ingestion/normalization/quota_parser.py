@@ -1,8 +1,3 @@
-# normalization/quota_parser.py
-"""
-Parse raw quota strings into structured QuotaInfo.
-"""
-
 import re
 import logging
 from typing import Optional
@@ -28,11 +23,11 @@ def parse_quota(raw: Optional[str]) -> Optional[QuotaInfo]:
 
     raw = raw.strip()
 
-    # ─── Pure number ────────────────────────────────────────────
+                                                                  
     if raw.isdigit():
         return QuotaInfo(value=int(raw), quota_type="exact")
 
-    # ─── "300 chỉ tiêu" or "chỉ tiêu: 300" ────────────────────
+                                                                
     exact_match = re.search(r"(\d+)\s*(?:chỉ tiêu)?", raw)
     range_match = re.search(r"(\d+)\s*[-–]\s*(\d+)", raw)
 
@@ -49,7 +44,7 @@ def parse_quota(raw: Optional[str]) -> Optional[QuotaInfo]:
             quota_type="exact",
         )
 
-    # ─── "khoảng XXX" ──────────────────────────────────────────
+                                                                 
     approx_match = re.search(r"khoảng\s+(\d+)", raw, re.IGNORECASE)
     if approx_match:
         return QuotaInfo(
@@ -57,7 +52,7 @@ def parse_quota(raw: Optional[str]) -> Optional[QuotaInfo]:
             quota_type="approximate",
         )
 
-    # ─── Unknown ────────────────────────────────────────────────
+                                                                  
     if any(kw in raw.lower() for kw in ["chưa", "không", "null", "n/a"]):
         return QuotaInfo(quota_type="unknown")
 

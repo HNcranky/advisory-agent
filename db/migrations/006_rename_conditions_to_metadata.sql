@@ -1,5 +1,3 @@
--- 006_rename_conditions_to_metadata.sql
--- Rename canonical_admission_records.conditions -> metadata for existing DBs
 
 DO $$
 BEGIN

@@ -1,11 +1,3 @@
-# normalization/method_mapper.py
-"""
-Map raw admission method text to canonical method codes.
-
-School-aware: looks up school-specific methods first,
-then falls back to shared methods.
-"""
-
 import json
 import logging
 from pathlib import Path
@@ -63,8 +55,8 @@ def map_method(
     methods = _load_dict(school_id)
     raw_lower = raw_method.lower().strip()
 
-    # Collect all matched methods (do not early-return),
-    # because one source line can contain multiple method fragments.
+                                                        
+                                                                    
     found_methods = []
     for method_code, info in methods.items():
         candidates = [info["canonical_name"]] + info.get("aliases", [])

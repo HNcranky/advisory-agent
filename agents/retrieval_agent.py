@@ -1,35 +1,31 @@
-# agents/retrieval_agent.py
-
-from state import AgentState, ProgramInfo
+from services.retrieval_service import (
+    build_retrieval_filters,
+    detect_conflicts,
+    fetch_candidates,
+)
+from state import AgentState
 
 
 def retrieval_agent(state: AgentState):
+    filters = build_retrieval_filters(state.student_profile, state.admission_year)
+    state.retrieval_filters = filters
 
-    major = state.student_profile.preferred_major
+    try:
+        candidates = fetch_candidates(filters=filters)
+    except Exception as exc:
+        state.retrieved_programs = []
+        state.conflicts = [f"Retrieval error: {exc}"]
+        return state
 
-    database = [
-        ProgramInfo(
-            university="Hanoi University of Science and Technology",
-            program="Computer Science",
-            admission_method="exam_score",
-            quota=300,
-            subject_combination=["A00"]
-        ),
-        ProgramInfo(
-            university="Vietnam National University Hanoi",
-            program="Computer Science",
-            admission_method="exam_score",
-            quota=200,
-            subject_combination=["A00"]
-        )
-    ]
+    subject_combination = state.student_profile.subject_combination
+    if subject_combination:
+        candidates = [
+            candidate
+            for candidate in candidates
+            if not candidate.subject_combinations
+            or subject_combination in candidate.subject_combinations
+        ]
 
-    results = []
-
-    for program in database:
-        if program.program == major:
-            results.append(program)
-
-    state.retrieved_programs = results
-
+    state.retrieved_programs = candidates
+    state.conflicts = detect_conflicts(candidates)
     return state

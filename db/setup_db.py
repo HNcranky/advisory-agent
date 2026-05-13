@@ -1,17 +1,8 @@
-# db/setup_db.py
-"""
-Database setup script.
-Creates the 'admission' database and runs all migrations.
-
-Usage:
-    python db/setup_db.py
-"""
-
 import sys
 import os
 from pathlib import Path
 
-# Add project root to path
+                          
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -23,7 +14,7 @@ from ingestion.config.settings import DB_CONFIG
 
 def create_database():
     """Create the admission database if it doesn't exist."""
-    # Connect to the default 'postgres' database
+                                                
     conn = psycopg2.connect(
         host=DB_CONFIG["host"],
         port=DB_CONFIG["port"],
@@ -34,7 +25,7 @@ def create_database():
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cur = conn.cursor()
 
-    # Check if database exists
+                              
     cur.execute(
         "SELECT 1 FROM pg_database WHERE datname = %s",
         (DB_CONFIG["database"],)
@@ -180,19 +171,19 @@ if __name__ == "__main__":
     print(f"   User: {DB_CONFIG['user']}")
     print(f"   Database: {DB_CONFIG['database']}\n")
 
-    # Step 1: Create database
+                             
     print("Step 1: Creating database...")
     create_database()
 
-    # Step 2: Run migrations
+                            
     print("\nStep 2: Running migrations...")
     run_migrations()
 
-    # Step 3: Verify
+                    
     print("\nStep 3: Verifying tables...")
     ok = verify_tables()
 
-    # Step 4: Seed data
+                       
     if ok:
         print("\nStep 4: Seeding source registry...")
         seed_source_registry()

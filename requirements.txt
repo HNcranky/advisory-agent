@@ -13,7 +13,7 @@ pdfminer.six
 # LLM & Agents
 langgraph
 langchain
-google-generativeai
+google-genai
 
 # Normalization
 thefuzz[speedup]
@@ -25,3 +25,5 @@ python-dateutil
 # Retry logic
 tenacity
 pdfminer
+
+pytest
