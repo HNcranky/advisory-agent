@@ -1,12 +1,3 @@
-# normalization/program_mapper.py
-"""
-Map raw program names to canonical program identifiers.
-Uses exact match → substring match → fuzzy match → fall through.
-
-School-aware: looks up school-specific programs first,
-then falls back to shared programs.
-"""
-
 import json
 import logging
 from pathlib import Path
@@ -38,7 +29,7 @@ def _load_dict(school_id: str = "") -> dict:
     shared = all_data.get("_shared", {})
     school = all_data.get(school_id, {}) if school_id else {}
 
-    # Shared first, then school-specific overrides
+                                                  
     merged = {}
     merged.update(shared)
     merged.update(school)
@@ -68,7 +59,7 @@ def map_program(
     programs = _load_dict(school_id)
     name_lower = program_name.lower().strip()
 
-    # ─── Exact alias match ──────────────────────────────────────
+                                                                  
     for prog_id, info in programs.items():
         canonical = info["canonical_name"]
         aliases = info.get("aliases", [])
@@ -80,7 +71,7 @@ def map_program(
             if name_lower == alias.lower():
                 return (prog_id, canonical)
 
-    # ─── Substring match ────────────────────────────────────────
+                                                                  
     for prog_id, info in programs.items():
         canonical = info["canonical_name"]
         aliases = info.get("aliases", [])
@@ -93,7 +84,7 @@ def map_program(
             ):
                 return (prog_id, canonical)
 
-    # ─── Fuzzy match ────────────────────────────────────────────
+                                                                  
     try:
         from thefuzz import fuzz
 
@@ -122,6 +113,6 @@ def map_program(
     except ImportError:
         logger.debug("thefuzz not available, skipping fuzzy match")
 
-    # ─── No match ───────────────────────────────────────────────
+                                                                  
     logger.debug(f"No canonical match for program: '{program_name}'")
     return (program_code, program_name)

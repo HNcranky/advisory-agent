@@ -1,4 +1,4 @@
-# ingestion/main.py
+                   
 """
 Entry point for the ingestion pipeline.
 
@@ -17,14 +17,14 @@ import logging
 import argparse
 from pathlib import Path
 
-# Add project root to path for imports
+                                      
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from ingestion.pipeline.ingestion_pipeline import IngestionPipeline
 from ingestion.registry.source_registry import SourceRegistry
 
-# Configure logging
+                   
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
@@ -81,7 +81,7 @@ def main():
 
     pipeline = IngestionPipeline()
 
-    # ─── List schools ───────────────────────────────────────────
+                                                                  
     if args.list_schools:
         _print_schools(pipeline)
         return
@@ -110,7 +110,7 @@ def main():
         records = pipeline.run_all_schools()
 
     else:
-        # Default: show available schools
+                                         
         print("\n📚 Admission Data Ingestion Pipeline")
         print("=" * 50)
         print("\nNo action specified. Available options:\n")
@@ -118,12 +118,12 @@ def main():
         print("\nRun with --help for full usage.\n")
         return
 
-    # ─── Output results ─────────────────────────────────────────
+                                                                  
     logger.info(f"\n{'='*60}")
     logger.info(f"Pipeline complete: {len(records)} normalized records")
     logger.info(f"{'='*60}")
 
-    # Serialize
+               
     output_data = []
     for record in records:
         output_data.append(record.model_dump(
@@ -131,7 +131,7 @@ def main():
             exclude_none=True,
         ))
 
-    # Print summary
+                   
     for i, record in enumerate(records):
         logger.info(
             f"\n[{i+1}] {record.program_name_raw or 'N/A'} "
@@ -151,14 +151,14 @@ def main():
         if record.quota:
             logger.info(f"    Quota: {record.quota.model_dump()}")
 
-    # Save to file if requested
+                               
     if args.output:
         output_path = Path(args.output)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(output_data, f, ensure_ascii=False, indent=2)
         logger.info(f"\nSaved to: {output_path}")
     else:
-        # Print JSON to stdout
+                              
         print(json.dumps(output_data, ensure_ascii=False, indent=2))
 
 

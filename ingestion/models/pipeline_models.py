@@ -1,8 +1,3 @@
-# models/pipeline_models.py
-"""
-Shared models used across all pipeline stages.
-"""
-
 from enum import Enum
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -10,7 +5,7 @@ from pydantic import BaseModel, Field
 import hashlib
 
 
-# ─── Enums ──────────────────────────────────────────────────────
+                                                                  
 
 class DocumentType(str, Enum):
     """Type of document after routing."""
@@ -35,7 +30,7 @@ class DiscoveryStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-# ─── Fetch Models ──────────────────────────────────────────────
+                                                                 
 
 class FetchResult(BaseModel):
     """Result from fetching a URL."""
@@ -51,7 +46,7 @@ class FetchResult(BaseModel):
     fetch_duration_ms: int = 0
 
     class Config:
-        # Allow bytes field
+                           
         arbitrary_types_allowed = True
 
     def compute_hash(self) -> str:
@@ -60,7 +55,7 @@ class FetchResult(BaseModel):
         return self.content_hash
 
 
-# ─── Discovery Models ──────────────────────────────────────────
+                                                                 
 
 class DiscoveredResource(BaseModel):
     """A resource discovered by the discovery layer."""
@@ -77,7 +72,7 @@ class DiscoveredResource(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
-# ─── Parse Models ──────────────────────────────────────────────
+                                                                 
 
 class ParsedContent(BaseModel):
     """Output from a parser."""
@@ -105,7 +100,7 @@ class ParsedContent(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
-# ─── Extraction Models ─────────────────────────────────────────
+                                                                 
 
 class SourceReference(BaseModel):
     """Reference back to the original source."""
@@ -138,26 +133,26 @@ class ExtractedAdmissionFact(BaseModel):
     extraction_method: str = "unknown"
 
 
-# ─── Normalization Models ──────────────────────────────────────
+                                                                 
 
 class QuotaInfo(BaseModel):
     """Normalized quota information."""
     value: Optional[int] = None
     min_value: Optional[int] = None
     max_value: Optional[int] = None
-    quota_type: str = "exact"  # exact, range, approximate, unknown
+    quota_type: str = "exact"                                      
 
 
 class DeadlineInfo(BaseModel):
     """Normalized deadline information."""
-    start: Optional[str] = None  # ISO date
-    end: Optional[str] = None    # ISO date
-    deadline_type: str = "unknown"  # before, range, unknown
+    start: Optional[str] = None            
+    end: Optional[str] = None              
+    deadline_type: str = "unknown"                          
 
 
 class SubjectCombination(BaseModel):
     """A normalized subject combination."""
-    code: str  # e.g. "A00"
+    code: str              
     subjects: List[str] = Field(default_factory=list)
     description: Optional[str] = None
 
@@ -187,5 +182,5 @@ class NormalizedAdmissionRecord(BaseModel):
     confidence_score: float = 0.5
     normalized_at: datetime = Field(default_factory=datetime.now)
 
-    # Link back to extracted fact
+                                 
     extracted_fact_id: Optional[int] = None

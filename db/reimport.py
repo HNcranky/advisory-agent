@@ -1,8 +1,6 @@
-"""Final re-run: clean DB, re-run pipeline with updated dictionary, import."""
 import sys, json
 sys.path.insert(0, '.')
 
-# Reset mapper caches (defensive against future renames)
 import ingestion.normalization.program_mapper as pm
 if hasattr(pm, "_PROGRAMS_CACHE"):
     pm._PROGRAMS_CACHE = None
@@ -23,23 +21,23 @@ from ingestion.pipeline.ingestion_pipeline import IngestionPipeline
 from ingestion.storage.db_writer import save_canonical_records
 from ingestion.storage.db_connection import get_cursor
 
-# Clear all old data
+                    
 with get_cursor() as cur:
     cur.execute('DELETE FROM canonical_admission_records')
     cur.execute('DELETE FROM extracted_facts')
     print('Cleared old data')
 
-# Run pipeline
+              
 pipeline = IngestionPipeline()
 source = pipeline.registry.get_source('hust_program_listing')
 records = pipeline.run_for_source(source)
 print(f'Pipeline produced {len(records)} records')
 
-# Save to DB
+            
 count = save_canonical_records(records)
 print(f'Saved {count} records to DB')
 
-# Verify
+        
 with get_cursor(commit=False) as cur:
     cur.execute('SELECT COUNT(*) FROM canonical_admission_records')
     total = cur.fetchone()[0]

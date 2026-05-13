@@ -1,4 +1,4 @@
-# parsers/parser_dispatcher.py
+                              
 """
 Selects and runs the appropriate parser based on DocumentType
 and parser_profile from the source registry.
@@ -45,7 +45,7 @@ def dispatch_parser(
     """
     parser_profile = source.parser_profile
 
-    # ─── Specialized parsers (plugin-based) ─────────────────────
+                                                                  
     registry = ParserRegistry.get_instance()
 
     if registry.has(parser_profile):
@@ -62,7 +62,7 @@ def dispatch_parser(
             source_metadata=source.metadata,
         )
 
-    # ─── Generic parsers ────────────────────────────────────────
+                                                                  
     if doc_type == DocumentType.HTML_ARTICLE:
         return parse_html(
             content=fetch_result.raw_content,
@@ -71,7 +71,7 @@ def dispatch_parser(
 
     elif doc_type in (DocumentType.PDF_TEXT, DocumentType.PDF_SCANNED):
         if doc_type == DocumentType.PDF_SCANNED:
-            # TODO: Use Gemini OCR for scanned PDFs
+                                                   
             logger.warning(
                 f"Scanned PDF detected for {fetch_result.final_url}, "
                 "falling back to text extraction"
@@ -82,7 +82,7 @@ def dispatch_parser(
         )
 
     elif doc_type == DocumentType.DOCX:
-        # TODO: Implement DOCX parser
+                                     
         logger.warning("DOCX parsing not yet implemented")
         return ParsedContent(
             text="",

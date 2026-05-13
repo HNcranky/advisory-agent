@@ -1,31 +1,46 @@
-# state.py
+from typing import Any, Dict, List, Optional
 
-from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from agents.models import (
+    CandidateProgram,
+    EligibilityCheck,
+    Evidence,
+    PolicyDecision,
+    RankedRecommendation,
+    StudentProfile,
+)
 
-class StudentProfile(BaseModel):
-    score: Optional[float] = None
-    subjects: Optional[List[str]] = None
-    preferred_major: Optional[str] = None
-
-
-class ProgramInfo(BaseModel):
-    university: str
-    program: str
-    admission_method: str
-    quota: Optional[int] = None
-    subject_combination: Optional[List[str]] = None
+try:
+    from ingestion.config.settings import ADMISSION_YEAR
+except Exception:
+    ADMISSION_YEAR = 2026
 
 
 class AgentState(BaseModel):
-
     user_query: str
+    chat_history: List[str] = Field(default_factory=list)
+    intent: Optional[str] = None
+    admission_year: int = ADMISSION_YEAR
 
-    student_profile: Optional[StudentProfile] = None
+    student_profile: StudentProfile = Field(default_factory=StudentProfile)
+    retrieval_filters: Dict[str, Any] = Field(default_factory=dict)
+    retrieved_programs: List[CandidateProgram] = Field(default_factory=list)
+    retrieval_missing_data: List[str] = Field(default_factory=list)
 
-    retrieved_programs: List[ProgramInfo] = []
+    conflicts: List[str] = Field(default_factory=list)
+    eligibility_checks: List[EligibilityCheck] = Field(default_factory=list)
+    ranked_recommendations: List[RankedRecommendation] = Field(default_factory=list)
 
-    conflicts: List[str] = []
+    policy_decision: Optional[PolicyDecision] = None
+    citations: List[Evidence] = Field(default_factory=list)
 
     advisory: Optional[str] = None
+    final_answer: Optional[str] = None
+    
+    inference_warnings: List[str] = Field(default_factory=list)
+    uncertainty_reasons: List[str] = Field(default_factory=list)
+
+
+                                                 
+ProgramInfo = CandidateProgram

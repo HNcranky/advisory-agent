@@ -1,5 +1,3 @@
--- 005_canonical_programs.sql
--- Stores normalized admission records (final output)
 
 CREATE TABLE IF NOT EXISTS canonical_admission_records (
     id                      SERIAL PRIMARY KEY,
@@ -22,7 +20,6 @@ CREATE TABLE IF NOT EXISTS canonical_admission_records (
     confidence_score        REAL,
     normalized_at           TIMESTAMPTZ DEFAULT NOW(),
 
-    -- Prevent exact duplicates
     UNIQUE(school_id, admission_year, program_id, admission_method)
 );
 

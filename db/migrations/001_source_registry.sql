@@ -1,5 +1,3 @@
--- 001_source_registry.sql
--- Source Registry: manages all known admission data sources
 
 CREATE TABLE IF NOT EXISTS source_registry (
     source_id           TEXT PRIMARY KEY,

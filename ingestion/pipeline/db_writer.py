@@ -1,4 +1,4 @@
-# pipeline/db_writer.py
+                       
 
 import psycopg2
 import json

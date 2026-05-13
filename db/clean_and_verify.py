@@ -1,12 +1,11 @@
-"""Final cleanup: remove noise K00K00 records and verify."""
 import sys
 sys.path.insert(0, '.')
 from ingestion.storage.db_connection import get_cursor
 
 with get_cursor() as cur:
-    # Delete all noise records where program_name_raw starts with K00
+                                                                     
     cur.execute("DELETE FROM canonical_admission_records WHERE program_name_raw LIKE 'K00%'")
-    # Delete D01D01 noise
+                         
     cur.execute("DELETE FROM canonical_admission_records WHERE program_name_raw LIKE 'D01D01%'")
     cur.execute("DELETE FROM canonical_admission_records WHERE program_name_canonical LIKE 'K00%'")
     cur.execute("DELETE FROM canonical_admission_records WHERE program_name_canonical LIKE 'D01%'")

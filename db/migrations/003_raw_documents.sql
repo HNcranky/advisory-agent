@@ -1,5 +1,3 @@
--- 003_raw_documents.sql
--- Stores raw fetched content with metadata
 
 CREATE TABLE IF NOT EXISTS raw_documents (
     id              SERIAL PRIMARY KEY,

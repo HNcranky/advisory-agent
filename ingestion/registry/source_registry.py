@@ -1,4 +1,4 @@
-# registry/source_registry.py
+                             
 
 import json
 from pathlib import Path
@@ -30,7 +30,7 @@ class SourceRegistry:
             entry = SourceEntry(**item)
             self._sources[entry.source_id] = entry
 
-    # ─── CRUD Operations ────────────────────────────────────────
+                                                                  
 
     def register_source(self, entry: SourceEntry) -> None:
         """Register a new source."""
