@@ -1,4 +1,8 @@
-from services.profile_inference_service import build_profile_with_gateway
+from services.chat.profile_state_service import CRITICAL_SLOT_ORDER
+from services.profile_inference_service import (
+    PROFILE_SYSTEM_PROMPT,
+    build_profile_with_gateway,
+)
 from services.inference.models import InferenceResult
 
 
@@ -16,6 +20,17 @@ class FakeGateway:
                 "preferred_schools": ["hust"],
                 "missing_slots": [],
             },
+        )
+
+
+def test_profile_system_prompt_covers_every_chat_critical_slot():
+    # admission_year is extracted by regex in the chat layer, not by the LLM,
+    # so the extraction prompt only needs to mention the slots the LLM owns.
+    llm_owned_slots = [slot for slot in CRITICAL_SLOT_ORDER if slot != "admission_year"]
+    for slot in llm_owned_slots:
+        assert slot in PROFILE_SYSTEM_PROMPT, (
+            f"PROFILE_SYSTEM_PROMPT must mention '{slot}' so live Gemini can fill it "
+            "(otherwise the chat layer loops asking for that slot)."
         )
 
 
