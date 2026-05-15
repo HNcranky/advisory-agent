@@ -178,7 +178,7 @@ def save_canonical_records(
                          tuition, source_url, source_trust_level,
                          confidence_score)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (school_id, admission_year, program_id, admission_method)
+                    ON CONFLICT (school_id, admission_year, program_id, admission_method, source_url)
                     DO UPDATE SET
                         program_name_canonical = EXCLUDED.program_name_canonical,
                         program_name_raw = EXCLUDED.program_name_raw,
