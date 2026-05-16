@@ -111,6 +111,8 @@ class ParserRegistry:
         except ImportError as e:
             logger.warning(f"Could not load VnuUetAdmissionParser: {e}")
 
-                                                                  
-                                                                   
-                                           
+        try:
+            from ingestion.parsers.vnu_uet_proposal_pdf_parser import VnuUetProposalPdfParser
+            self.register(VnuUetProposalPdfParser())
+        except ImportError as e:
+            logger.warning(f"Could not load VnuUetProposalPdfParser: {e}")

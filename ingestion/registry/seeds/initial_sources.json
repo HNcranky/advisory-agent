@@ -22,12 +22,9 @@
     "trust_level": 5,
     "priority": 1,
     "fetch_strategy": "http",
-    "parser_profile": "default_pdf",
+    "parser_profile": "vnu_uet_proposal_pdf",
     "update_frequency_hint": "yearly",
     "is_official": true,
-    "active": false,
-    "metadata": {
-      "exclusion_reason": "Bail-out: default PDF extraction produced 0 facts and LLM fallback was unavailable."
-    }
+    "active": true
   }
 ]
