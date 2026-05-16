@@ -8,6 +8,26 @@ DATA_DIR = INGESTION_ROOT / "data"
 RAW_CONTENT_DIR = DATA_DIR / "raw"
 DICTIONARIES_DIR = INGESTION_ROOT / "normalization" / "dictionaries"
 
+
+def _load_env_file(env_path: Path) -> None:
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+
+        os.environ[key] = value.strip().strip("\"'")
+
+
+_load_env_file(PROJECT_ROOT / ".env")
+
                         
 RAW_CONTENT_DIR.mkdir(parents=True, exist_ok=True)
 
