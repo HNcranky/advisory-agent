@@ -1,0 +1,30 @@
+[
+  {
+    "source_id": "vnu_uet_admission_homepage_2026",
+    "school_id": "vnu_uet",
+    "school_name": "Truong Dai hoc Cong nghe - DHQGHN",
+    "source_type": "admission_homepage",
+    "root_url": "https://uet.vnu.edu.vn/tuyen-sinh/",
+    "trust_level": 4,
+    "priority": 2,
+    "fetch_strategy": "http",
+    "parser_profile": "default_html",
+    "update_frequency_hint": "yearly",
+    "is_official": true,
+    "active": true
+  },
+  {
+    "source_id": "vnuhn_proposal_pdf_2026",
+    "school_id": "vnu_uet",
+    "school_name": "Truong Dai hoc Cong nghe - DHQGHN",
+    "source_type": "proposal_pdf",
+    "root_url": "https://tuyensinh.uet.vnu.edu.vn/wp-content/images/Thong-tin-tuyen-sinh-DHCQ-nam-2026-cap-nhat.pdf",
+    "trust_level": 5,
+    "priority": 1,
+    "fetch_strategy": "http",
+    "parser_profile": "default_pdf",
+    "update_frequency_hint": "yearly",
+    "is_official": true,
+    "active": true
+  }
+]
