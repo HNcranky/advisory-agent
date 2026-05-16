@@ -1,6 +1,9 @@
 from pathlib import Path
 
-from ingestion.parsers.vnu_uet_admission_parser import VnuUetAdmissionParser
+from ingestion.parsers.vnu_uet_admission_parser import (
+    _SELECTOR_PRIORITY,
+    VnuUetAdmissionParser,
+)
 
 
 FIXTURE = (
@@ -51,3 +54,7 @@ def test_vnu_uet_parser_extracts_program_facts_from_fixture():
         assert "X26" not in (fact.subject_combinations_raw or [])
         assert "D01" not in (fact.subject_combinations_raw or [])
         assert "B00" not in (fact.subject_combinations_raw or [])
+
+
+def test_vnu_uet_parser_prefers_fixture_confirmed_selector():
+    assert _SELECTOR_PRIORITY[0] == "div.dev-faq-content table"
