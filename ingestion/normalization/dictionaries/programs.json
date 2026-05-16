@@ -356,6 +356,98 @@
     }
   },
 
+  "vnu_uet": {
+    "computer_science": {
+      "canonical_name": "Khoa học Máy tính",
+      "aliases": ["Khoa học máy tính", "Computer Science", "CNTT", "KH Máy tính", "CS"],
+      "field": "technology"
+    },
+    "information_technology_uet": {
+      "canonical_name": "Công nghệ Thông tin",
+      "aliases": ["Công nghệ thông tin"],
+      "field": "technology"
+    },
+    "computer_engineering": {
+      "canonical_name": "Kỹ thuật Máy tính",
+      "aliases": ["Kỹ thuật máy tính"],
+      "field": "technology"
+    },
+    "data_science": {
+      "canonical_name": "Khoa học Dữ liệu",
+      "aliases": [
+        "Khoa học dữ liệu",
+        "Data Science",
+        "KHDL",
+        "DS",
+        "Khoa học Dữ liệu và Trí tuệ nhân tạo",
+        "AI"
+      ],
+      "field": "technology"
+    },
+    "artificial_intelligence_uet": {
+      "canonical_name": "Trí tuệ Nhân tạo",
+      "aliases": ["Trí tuệ nhân tạo"],
+      "field": "technology"
+    },
+    "computer_networks_data_communication": {
+      "canonical_name": "Mạng Máy tính và Truyền thông Dữ liệu",
+      "aliases": ["Mạng máy tính và truyền thông dữ liệu"],
+      "field": "technology"
+    },
+    "technical_physics": {
+      "canonical_name": "Vật lý Kỹ thuật",
+      "aliases": ["Vật lý kỹ thuật"],
+      "field": "science"
+    },
+    "engineering_mechanics": {
+      "canonical_name": "Cơ Kỹ thuật",
+      "aliases": ["Cơ kỹ thuật"],
+      "field": "engineering"
+    },
+    "aerospace_technology": {
+      "canonical_name": "Công nghệ Hàng không Vũ trụ",
+      "aliases": ["Công nghệ hàng không vũ trụ"],
+      "field": "engineering"
+    },
+    "agricultural_technology": {
+      "canonical_name": "Công nghệ Nông nghiệp",
+      "aliases": ["Công nghệ nông nghiệp"],
+      "field": "science"
+    },
+    "energy_engineering": {
+      "canonical_name": "Kỹ thuật Năng lượng",
+      "aliases": ["Kỹ thuật năng lượng"],
+      "field": "engineering"
+    },
+    "robotics": {
+      "canonical_name": "Kỹ thuật Robot",
+      "aliases": ["Kỹ thuật Robot"],
+      "field": "engineering"
+    },
+    "industrial_design_graphics": {
+      "canonical_name": "Thiết kế Công nghiệp và Đồ họa",
+      "aliases": ["Thiết kế công nghiệp và đồ họa"],
+      "field": "technology"
+    },
+    "materials_technology": {
+      "canonical_name": "Công nghệ Vật liệu",
+      "aliases": ["Công nghệ vật liệu"],
+      "field": "science"
+    },
+    "electronics_telecom": {
+      "canonical_name": "Kỹ thuật Điện tử - Viễn thông",
+      "aliases": [
+        "Điện tử viễn thông",
+        "Điện tử và Viễn thông",
+        "Electronics and Telecommunications",
+        "ĐTVT",
+        "ET",
+        "Công nghệ kỹ thuật điện tử – viễn thông"
+      ],
+      "field": "engineering"
+    }
+  },
+
   "ftu": {
     "international_economics_ftu": {
       "canonical_name": "Kinh tế Quốc tế",
