@@ -1,0 +1,69 @@
+# VNU-UET Pre-Flight Findings - 2026
+
+Date: 2026-05-16
+
+Outcome: PASS_WITH_CAVEATS
+
+Pre-flight source discovery passed for the official VNU-UET 2026 admission article and its linked official PDF. Caveats: the original planned URL returned 404, the originally requested VNU-wide proposal PDF was not found, and the live DB schema was not verified because `psql` is not installed/on PATH. The official UET PDF linked from the public UET article was used as the parseable proposal-like source. The plan commit step was intentionally not performed because the user requested no commits.
+
+## Sources Confirmed
+
+| Source | URL | Source type | Trust | Reachability | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| Original planned UET admissions URL | https://uet.vnu.edu.vn/tuyen-sinh-dai-hoc/ | admission_homepage | 4 | FAIL | Returned HTTP 404 via curl. |
+| UET admissions fallback URL | https://uet.vnu.edu.vn/tuyen-sinh/ | admission_homepage | 4 | PASS | Returned HTTP 200 three times. |
+| Official UET 2026 article | https://uet.vnu.edu.vn/truong-dai-hoc-cong-nghe-dhqghn-ma-truong-qhi-tuyen-sinh-nam-2026-bac-dai-hoc-2/ | admission_homepage/article | 4 | PASS | Returned HTTP 200 three times. Public article, no auth observed. Title: "Trường Đại học Công nghệ, ĐHQGHN (Mã trường QHI): Tuyển sinh năm 2026 bậc đại học". Published 2026-04-02. |
+| Official UET linked PDF | https://tuyensinh.uet.vnu.edu.vn/wp-content/images/Thong-tin-tuyen-sinh-DHCQ-nam-2026-cap-nhat.pdf | proposal_pdf | 5 | PASS | Linked from the official article. Downloaded locally to `%TEMP%\vnuhn_proposal_2026.pdf`, size 1,908,053 bytes. |
+
+## Checklist Results
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Both sources reachable without auth | PASS_WITH_CAVEAT | The fallback admissions URL and resolved 2026 article URL returned HTTP 200 three times each. The original planned URL returned HTTP 404. Article and PDF were public; no auth was observed. |
+| PDF text-extractable | PASS | `pdfplumber` opened the PDF successfully: 11 pages. Page 1 extracted readable Vietnamese text. Page 4 extracted the reserved/dự bị table. Pages 5-6 extracted the main quota table. Extraction quality: GOOD. |
+| At least 3 programs with distinct quota across sources | PASS | 20 method-level divergent rows were identified using the UET article visible `dự bị đại học` method/allocation table versus the PDF main quota table. |
+| Program name alignment unambiguous | PASS | Names/codes align. Differences are limited to case, punctuation, asterisk pilot-program markers, or parenthetical program details. |
+| DB writer conflict key pre-flight | PREREQUISITE_NOT_VERIFIED | `psql` is not installed/on PATH, so the live DB schema was not verified. Repo evidence exists: `db/migrations/010_canonical_records_per_source.sql` defines `UNIQUE (school_id, admission_year, program_id, admission_method, source_url)`, and `ingestion/storage/db_writer.py` line 181 uses `ON CONFLICT (school_id, admission_year, program_id, admission_method, source_url)`. |
+
+## Program Name Mapping Table
+
+This is a method-level comparison. The UET article source quota is the visible `dự bị đại học` method/allocation quota, while the PDF source quota is the PDF main quota table.
+
+| UET article program name | PDF program name | UET method quota | PDF full quota | Match |
+| --- | --- | ---: | ---: | --- |
+| Công nghệ thông tin | Công nghệ thông tin | 3 | 460 | YES |
+| Kỹ thuật máy tính | Kỹ thuật máy tính | 3 | 400 | YES |
+| Khoa học máy tính | Khoa học máy tính | 3 | 400 | YES |
+| Trí tuệ nhân tạo | Trí tuệ nhân tạo | 3 | 320 | YES |
+| Hệ thống thông tin | Hệ thống thông tin | 2 | 240 | YES |
+| Mạng máy tính và truyền thông dữ liệu | Mạng máy tính và truyền thông dữ liệu | 1 | 120 | YES |
+| Vật lý kỹ thuật | Vật lý kỹ thuật | 3 | 160 | YES |
+| Cơ kỹ thuật | Cơ kỹ thuật | 1 | 60 | YES |
+| Công nghệ kỹ thuật xây dựng | Công nghệ kỹ thuật xây dựng | 2 | 160 | YES |
+| Công nghệ kỹ thuật cơ điện tử | Công nghệ kỹ thuật cơ - điện tử | 2 | 160 | YES |
+| Công nghệ hàng không vũ trụ | Công nghệ hàng không vũ trụ* | 2 | 120 | YES |
+| Công nghệ kỹ thuật điện tử - viễn thông | Công nghệ kỹ thuật điện tử – viễn thông | 3 | 480 | YES |
+| Công nghệ nông nghiệp | Công nghệ nông nghiệp* | 1 | 60 | YES |
+| Kỹ thuật điều khiển và tự động hóa | Kỹ thuật điều khiển và tự động hoá | 2 | 140 | YES |
+| Kỹ thuật năng lượng | Kỹ thuật năng lượng* | 2 | 60 | YES |
+| Kỹ thuật Robot | Kỹ thuật Robot* | 2 | 140 | YES |
+| Thiết kế công nghiệp và đồ họa | Thiết kế công nghiệp và Đồ họa* | 2 | 240 | YES |
+| Công nghệ vật liệu | Công nghệ vật liệu (Chương trình Công nghệ vật liệu và Vi điện tử) | 1 | 120 | YES |
+| Khoa học dữ liệu | Khoa học dữ liệu (Chương trình Khoa học và Kỹ thuật dữ liệu) | 1 | 120 | YES |
+| Công nghệ sinh học | Công nghệ sinh học (Chương trình Công nghệ kỹ thuật sinh học) | 1 | 60 | YES |
+
+## HTML Structure Notes
+
+- The direct source HTML appears to be a WordPress article body.
+- Page content extraction shows the article includes the method share table and the `dự bị` table.
+- Selector approximation for parser implementation: `.elementor-widget-theme-post-content` / `.entry-content`.
+- Repeated table rows appear to be rendered as WordPress table content.
+- Exact DOM class should be confirmed during parser implementation because current inspection used text extraction rather than browser devtools.
+
+## Bail-Outs Applied
+
+- The original planned URL `https://uet.vnu.edu.vn/tuyen-sinh-dai-hoc/` returned HTTP 404, so source discovery used fallback URL `https://uet.vnu.edu.vn/tuyen-sinh/`.
+- The resolved official 2026 article URL was used after confirming repeated HTTP 200 responses.
+- The originally requested VNU-wide proposal PDF was not found. The official UET PDF linked from the article was used as the parseable proposal-like source.
+- Live DB schema verification was skipped because `psql` is not installed/on PATH; repo migration and writer evidence were recorded as a prerequisite note instead.
+- No commit was created; the commit step was intentionally skipped per user instruction.
