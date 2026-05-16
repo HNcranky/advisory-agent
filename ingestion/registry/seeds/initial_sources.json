@@ -8,7 +8,7 @@
     "trust_level": 4,
     "priority": 2,
     "fetch_strategy": "http",
-    "parser_profile": "default_html",
+    "parser_profile": "vnu_uet_admission_page",
     "update_frequency_hint": "yearly",
     "is_official": true,
     "active": true
@@ -25,6 +25,9 @@
     "parser_profile": "default_pdf",
     "update_frequency_hint": "yearly",
     "is_official": true,
-    "active": true
+    "active": false,
+    "metadata": {
+      "exclusion_reason": "Bail-out: default PDF extraction produced 0 facts and LLM fallback was unavailable."
+    }
   }
 ]

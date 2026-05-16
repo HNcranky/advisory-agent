@@ -9,5 +9,6 @@ def test_build_default_gateway_has_expected_agent_defaults():
     explanation_policy = gateway.registry.resolve("explanation_agent")
 
     assert profile_policy.primary_model == "gemini-2.5-flash-lite"
-    assert reasoning_policy.allow_fallback is False
+    assert reasoning_policy.allow_fallback is True
+    assert reasoning_policy.fallback_model == "gemini-2.5-flash-lite"
     assert explanation_policy.output_mode == "free_text"

@@ -105,6 +105,12 @@ class ParserRegistry:
         except ImportError as e:
             logger.warning(f"Could not load HustProgramParser: {e}")
 
+        try:
+            from ingestion.parsers.vnu_uet_admission_parser import VnuUetAdmissionParser
+            self.register(VnuUetAdmissionParser())
+        except ImportError as e:
+            logger.warning(f"Could not load VnuUetAdmissionParser: {e}")
+
                                                                   
                                                                    
                                            

@@ -15,6 +15,7 @@ import sys
 import json
 import logging
 import argparse
+import unicodedata
 from pathlib import Path
 
                                       
@@ -111,7 +112,7 @@ def main():
 
     else:
                                          
-        print("\n📚 Admission Data Ingestion Pipeline")
+        print("\nAdmission Data Ingestion Pipeline")
         print("=" * 50)
         print("\nNo action specified. Available options:\n")
         _print_schools(pipeline)
@@ -139,7 +140,7 @@ def main():
         )
         if record.program_name_canonical:
             logger.info(
-                f"    → Canonical: {record.program_name_canonical}"
+                f"    -> Canonical: {record.program_name_canonical}"
             )
         if record.admission_method:
             logger.info(f"    Method: {record.admission_method}")
@@ -171,12 +172,14 @@ def _print_schools(pipeline: IngestionPipeline):
         return
 
     print(f"\n  {'School ID':<12} {'School Name':<35} {'Active':>7} {'Total':>7}")
-    print(f"  {'─'*12} {'─'*35} {'─'*7} {'─'*7}")
+    print(f"  {'-'*12} {'-'*35} {'-'*7} {'-'*7}")
 
     for s in schools:
-        status = "✅" if s["active_sources"] > 0 else "⏸️"
+        school_id = _ascii_text(s["school_id"])
+        school_name = _ascii_text(s["school_name"])
+        status = "active" if s["active_sources"] > 0 else "paused"
         print(
-            f"  {s['school_id']:<12} {s['school_name']:<35} "
+            f"  {school_id:<12} {school_name:<35} "
             f"{s['active_sources']:>5}   {s['total_sources']:>5}  {status}"
         )
 
@@ -185,6 +188,13 @@ def _print_schools(pipeline: IngestionPipeline):
     print(f"    python -m ingestion.main --school hust")
     print(f"    python -m ingestion.main --source hust_program_listing")
     print(f"    python -m ingestion.main --all")
+
+
+def _ascii_text(value: object) -> str:
+    """Return text safe for legacy Windows console encodings."""
+    text = str(value).replace("\u0110", "D").replace("\u0111", "d")
+    normalized = unicodedata.normalize("NFKD", text)
+    return normalized.encode("ascii", errors="ignore").decode("ascii")
 
 
 if __name__ == "__main__":
