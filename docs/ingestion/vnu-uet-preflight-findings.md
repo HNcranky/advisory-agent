@@ -67,3 +67,46 @@ This is a method-level comparison. The UET article source quota is the visible `
 - The originally requested VNU-wide proposal PDF was not found. The official UET PDF linked from the article was used as the parseable proposal-like source.
 - Live DB schema verification was skipped because `psql` is not installed/on PATH; repo migration and writer evidence were recorded as a prerequisite note instead.
 - No commit was created; the commit step was intentionally skipped per user instruction.
+
+## Pipeline Execution Findings - 2026-05-16
+
+**Query A result:** row_count = 40
+**Query B result:** 20 conflict-bearing tuples found
+
+The full VNU-UET pipeline produced 40 normalized records: 20 from the public UET admissions page and 20 from the official linked PDF. Records were upserted into `canonical_admission_records` with distinct `source_url` values for the same `program_id` / `admission_method` pairs.
+
+### Conflict-Bearing Programs
+
+| program_id | admission_method | quota (homepage source) | quota (PDF source) |
+|------------|------------------|-------------------------|--------------------|
+| CN1 | Xét tuyển tài năng | 3 | 460 |
+| CN10 | Xét tuyển tài năng | 1 | 60 |
+| CN11 | Xét tuyển tài năng | 2 | 140 |
+| CN12 | Xét tuyển tài năng | 3 | 320 |
+| CN13 | Xét tuyển tài năng | 2 | 60 |
+| CN14 | Xét tuyển tài năng | 2 | 60 |
+| CN15 | Xét tuyển tài năng | 1 | 240 |
+| CN17 | Xét tuyển tài năng | 2 | 120 |
+| CN18 | Xét tuyển tài năng | 2 | 140 |
+| CN19 | Xét tuyển tài năng | 1 | 240 |
+| CN2 | Xét tuyển tài năng | 3 | 400 |
+| CN20 | Xét tuyển tài năng | 1 | 120 |
+| CN21 | Xét tuyển tài năng | 1 | 120 |
+| CN3 | Xét tuyển tài năng | 3 | 160 |
+| CN4 | Xét tuyển tài năng | 1 | 60 |
+| CN5 | Xét tuyển tài năng | 2 | 160 |
+| CN6 | Xét tuyển tài năng | 2 | 160 |
+| CN7 | Xét tuyển tài năng | 2 | 120 |
+| CN8 | Xét tuyển tài năng | 3 | 400 |
+| CN9 | Xét tuyển tài năng | 3 | 480 |
+
+### Sanity Check
+
+Quota values for `CN1` / `Xét tuyển tài năng`:
+
+- Homepage source: `{"value": 3, "quota_type": "exact"}` - matches the homepage allocation table value `3`.
+- PDF source: `{"value": 460, "quota_type": "exact"}` - matches the PDF main quota table value `460`.
+
+Both values normalize to the same JSONB shape and quota type. The conflict signal is therefore not caused by a quota parser format mismatch. It reflects the pre-flight source comparison: homepage method/allocation quota versus PDF main quota.
+
+Conclusion: SQL acceptance gate PASSED. No commit was created because the user explicitly requested no commits.
