@@ -7,6 +7,9 @@ import json
 import logging
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from ingestion.pipeline.ingestion_pipeline import IngestionPipeline
@@ -41,7 +44,7 @@ def _print_text_diagnostic(parsed):
     excerpt = " ".join(parsed.text.split())[:TEXT_EXCERPT_CHARS]
     print("No facts extracted; parsed text diagnostic:")
     print(f"  text_length={len(parsed.text)}")
-    print(f"  excerpt={ascii(excerpt)}")
+    print(f"  excerpt={excerpt}")
 
 
 def _print_fact_sample(facts):
@@ -51,10 +54,10 @@ def _print_fact_sample(facts):
             print(f"  Unexpected fact type: {type(fact).__name__}")
             continue
 
-        print(f"  program_name={ascii(fact.program_name)}")
-        print(f"  quota_raw={ascii(fact.quota_raw)}")
-        print(f"  method_raw={ascii(fact.admission_method_raw)}")
-        print(f"  combos={ascii(fact.subject_combinations_raw)}")
+        print(f"  program_name={fact.program_name}")
+        print(f"  quota_raw={fact.quota_raw}")
+        print(f"  admission_method_raw={fact.admission_method_raw}")
+        print(f"  subject_combinations_raw={fact.subject_combinations_raw}")
         print()
 
 
@@ -72,16 +75,10 @@ def main():
 
     for source in sources:
         print(f"\n{'=' * 60}")
-        print(f"Source: {source.source_id}")
-        print(f"Profile: {source.parser_profile}")
+        print(f"Source id: {source.source_id}")
+        print(f"Parser profile: {source.parser_profile}")
         print(f"Active: {getattr(source, 'active', None)}")
         print(f"URL: {source.root_url}")
-
-        if not source.active:
-            metadata = source.metadata or {}
-            reason = metadata.get("exclusion_reason", "source is inactive")
-            print(f"Skipped: inactive source. Reason: {reason}")
-            continue
 
         try:
             fetch_result = dispatch_fetch(source.root_url, source)

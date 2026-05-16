@@ -33,8 +33,8 @@ _RE_SKIP_NAME = re.compile(
 )
 
 _SELECTOR_PRIORITY = [
-    "table",  # confirmed from fixture: program facts are table rows
-    "div.dev-faq-content table",
+    "div.dev-faq-content table",  # confirmed fixture container for program fact tables
+    "table",
     "div.elementor-widget-container table",
     "table tr",
     "div.dev-faq-item",
