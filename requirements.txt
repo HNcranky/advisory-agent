@@ -9,6 +9,7 @@ psycopg2-binary
 
 # PDF
 pdfminer.six
+pdfplumber
 
 # LLM & Agents
 langgraph

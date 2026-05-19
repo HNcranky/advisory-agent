@@ -54,7 +54,10 @@ def _normalize(text: str) -> str:
     without_marks = "".join(
         ch for ch in decomposed if not unicodedata.combining(ch)
     )
-    return re.sub(r"\s+", " ", without_marks).lower().strip()
+    # NFKD does not split precomposed Đ/đ; map them explicitly so callers can
+    # use ASCII keywords like "dbcl" / "du bi".
+    folded = without_marks.translate({ord("Đ"): "D", ord("đ"): "d"})
+    return re.sub(r"\s+", " ", folded).lower().strip()
 
 
 def _clean_text(text: str) -> str:
@@ -112,6 +115,10 @@ def _is_program_quota_table(rows: List[List[str]]) -> bool:
     is_undergraduate_admission = any(
         "ma xet tuyen" in _normalize(cell) for cell in header
     )
+
+    # Skip the dự bị 1% sub-allocation table (signature column "Ngưỡng ĐBCL").
+    if any("nguong dbcl" in _normalize(cell) for cell in header):
+        return False
 
     return has_name and has_code and has_quota and is_undergraduate_admission
 
@@ -183,6 +190,33 @@ def _nearest_method_context(table: Tag) -> Optional[str]:
     return None
 
 
+def _only_du_bi_quota_signal(soup: BeautifulSoup) -> bool:
+    saw_quota_table = False
+    for table in soup.select("table"):
+        rows = _table_rows(table)
+        if not rows:
+            continue
+        header = rows[0]
+        normalized_header = [_normalize(cell) for cell in header]
+        looks_like_quota_table = (
+            any(
+                "ten nganh" in cell or "nganh dao tao" in cell
+                for cell in normalized_header
+            )
+            and any("ma xet tuyen" in cell for cell in normalized_header)
+            and any(
+                "so luong" in cell or "chi tieu" in cell
+                for cell in normalized_header
+            )
+        )
+        if not looks_like_quota_table:
+            continue
+        saw_quota_table = True
+        if not any("nguong dbcl" in cell for cell in normalized_header):
+            return False
+    return saw_quota_table
+
+
 def _looks_like_program_name(value: str) -> bool:
     normalized = _normalize(value)
     if len(value) < 5:
@@ -223,6 +257,16 @@ class VnuUetAdmissionParser(BaseSpecializedParser):
 
         global_methods = _extract_global_methods(soup)
         fallback_subject_combinations = _extract_first_subject_combinations_before_2025(soup)
+
+        # If the only per-program quota signal on the page is the dự bị 1%
+        # allocation, the homepage has no full-method quota to emit. Bail out
+        # rather than letting the generic/regex fallbacks scrape stray digits.
+        if _only_du_bi_quota_signal(soup):
+            logger.info(
+                "VnuUetAdmissionParser: only dự bị allocation quota table found; "
+                "emitting no facts to avoid fabricating method-level conflicts"
+            )
+            return []
 
         for selector in _SELECTOR_PRIORITY:
             containers = soup.select(selector)
