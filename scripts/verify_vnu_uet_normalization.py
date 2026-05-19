@@ -70,7 +70,7 @@ KNOWN_METHOD_CODES = {
 }
 
 OBSERVED_METHOD_SAMPLES = [
-    "2.2.5. Xét tuyển diện dự bị đại học",
+    "Xét tuyển tài năng",
 ]
 
 

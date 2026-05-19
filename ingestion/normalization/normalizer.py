@@ -36,19 +36,13 @@ def normalize_fact(
     if not school_id:
         school_id = fact.source_reference.school_id
 
-                                                                            
-                                                                                             
+
+
     program_id, program_canonical = map_program(
         fact.program_name, fact.program_code, school_id=school_id
     )
 
-                                                                 
-                                                                              
-    program_code = (fact.program_code or "").strip() or None
-    if program_code:
-        program_id = program_code
 
-                                                                  
                                                            
     method = None
     if fact.admission_method_raw:

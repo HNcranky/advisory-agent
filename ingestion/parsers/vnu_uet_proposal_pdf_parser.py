@@ -1,94 +1,74 @@
 """
 VNU-UET proposal PDF parser.
 
-The proposal PDF's program quota table is extracted by pdfminer as vertical
-columns: all program names, then all program codes, then all quota values.
+The proposal PDF's main quota table (section "4. Tổng số lượng tuyển sinh")
+contains one row per program, formatted by pdfplumber as a single line:
+
+    <row_num>. <code> <name> <mã ngành> <nhóm ngành> <quota>
+
+The mã ngành is a 7-character alphanumeric token (e.g. 7480201, 75290A1) and
+the quota is the first 2-4 digit number that follows it. Anchoring on this
+shape lets us assign each quota to its own row without depending on the order
+in which pdfminer would emit column cells (the previous parser had to
+hard-code a swap for CN12/CN13 because of that fragility).
 """
 
+import io
 import logging
 import re
-import unicodedata
-from typing import Iterable, List, Optional, Tuple
+from typing import List, Optional
 
 from ingestion.config.settings import ADMISSION_YEAR
 from ingestion.models.pipeline_models import ExtractedAdmissionFact, SourceReference
 from ingestion.parsers.base_parser import BaseSpecializedParser
-from ingestion.parsers.pdf_parser import parse_pdf
 
 logger = logging.getLogger(__name__)
 
 _SOURCE_ID = "vnuhn_proposal_pdf_2026"
 _METHOD_RAW = "Xét tuyển tài năng"
 _SUBJECT_COMBINATIONS = ["A00", "A01", "X06", "A02"]
-_RE_PROGRAM_CODE = re.compile(r"^CN\d{1,2}$")
-_RE_PROGRAM_CODE_ANYWHERE = re.compile(r"\b(CN\d{1,2})\b")
-_RE_QUOTA_VALUE = re.compile(r"^\d{1,4}$")
+
+_SECTION_START = "Tổng số lượng tuyển sinh"
+# The program table is closed by the "(-) * Chương trình đào tạo thí điểm." footnote.
+_RE_SECTION_END = re.compile(r"\n\(-\)\s*\*")
+
+_RE_ROW = re.compile(
+    r"^\s*(?P<row_num>\d+)\.\s*"
+    r"(?P<code>CN\d+)\s+"
+    r"(?P<name_raw>.+?)\s+"
+    r"(?P<ma_nganh>\d[\dA-Z]{6})\b"
+    r"(?P<after>.*)$"
+)
+_RE_QUOTA_VALUE = re.compile(r"\b(\d{2,4})\b")
 
 
-def _clean_text(text: str) -> str:
-    return re.sub(r"\s+", " ", text.replace("\xa0", " ")).strip()
+def _extract_pdf_text(content: bytes) -> str:
+    """Extract text from a PDF with pdfplumber, preserving row layout."""
+    import pdfplumber
+
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        return "\n".join(page.extract_text() or "" for page in pdf.pages)
 
 
-def _normalize(text: str) -> str:
-    decomposed = unicodedata.normalize("NFKD", text)
-    without_marks = "".join(
-        ch for ch in decomposed if not unicodedata.combining(ch)
-    )
-    return re.sub(r"\s+", " ", without_marks).lower().strip()
+def _slice_program_section(text: str) -> Optional[str]:
+    idx = text.find(_SECTION_START)
+    if idx < 0:
+        return None
+    section = text[idx:]
+    end = _RE_SECTION_END.search(section)
+    if end:
+        section = section[: end.start()]
+    return section
 
 
-def _non_empty_lines(text: str) -> List[str]:
-    return [_clean_text(line) for line in text.splitlines() if _clean_text(line)]
-
-
-def _looks_like_program_name(value: str) -> bool:
-    normalized = _normalize(value)
-    if len(value) < 5:
-        return False
-    if normalized in {"tt", "ma", "xet tuyen", "so", "luong", "tuyen", "sinh"}:
-        return False
-    return any(
-        token in normalized
-        for token in (
-            "cong nghe",
-            "ky thuat",
-            "khoa hoc",
-            "tri tue",
-            "he thong",
-            "mang may",
-            "vat ly",
-            "co ky",
-            "thiet ke",
-        )
-    )
-
-
-def _take_program_codes(lines: Iterable[str]) -> List[str]:
-    return [line for line in lines if _RE_PROGRAM_CODE.match(line)]
-
-
-def _is_main_quota_value(line: str) -> bool:
-    if not _RE_QUOTA_VALUE.match(line):
-        return False
-    value = int(line)
-    return 50 <= value <= 1000
-
-
-def _code_blocks(lines: List[str]) -> List[Tuple[int, int, List[str]]]:
-    blocks: List[Tuple[int, int, List[str]]] = []
-    idx = 0
-    while idx < len(lines):
-        if not _RE_PROGRAM_CODE.match(lines[idx]):
-            idx += 1
-            continue
-
-        start = idx
-        codes: List[str] = []
-        while idx < len(lines) and _RE_PROGRAM_CODE.match(lines[idx]):
-            codes.append(lines[idx])
-            idx += 1
-        blocks.append((start, idx - 1, codes))
-    return blocks
+def _augment_name_with_prev_line(name_raw: str, prev_line: str) -> str:
+    name = name_raw.strip()
+    # When pdfplumber wraps a long program name, the row line begins with the
+    # parenthetical continuation while the bare program name sits on the line
+    # above. Prepending that line lets the canonical mapper substring-match.
+    if name.startswith("(") and prev_line and not _RE_ROW.match(prev_line):
+        return f"{prev_line.strip()} {name}"
+    return name
 
 
 class VnuUetProposalPdfParser(BaseSpecializedParser):
@@ -104,10 +84,10 @@ class VnuUetProposalPdfParser(BaseSpecializedParser):
         school_name: str = "Truong Dai hoc Cong nghe - DHQGHN",
         source_metadata: Optional[dict] = None,
     ) -> List[ExtractedAdmissionFact]:
-        parsed = parse_pdf(content, source_url)
-        facts = self._facts_from_text(parsed.text, source_url, school_id, school_name)
+        text = _extract_pdf_text(content)
+        facts = self._facts_from_text(text, source_url, school_id, school_name)
         logger.info(
-            "VnuUetProposalPdfParser: extracted %s facts from vertical quota table",
+            "VnuUetProposalPdfParser: extracted %s facts from main quota table",
             len(facts),
         )
         return facts
@@ -119,124 +99,51 @@ class VnuUetProposalPdfParser(BaseSpecializedParser):
         school_id: str,
         school_name: str,
     ) -> List[ExtractedAdmissionFact]:
-        lines = _non_empty_lines(text)
-        selected = self._select_quota_block(lines)
-        if selected is None:
-            return []
-
-        first_code_idx, last_code_idx, codes, quotas = selected
-        names = [
-            line for line in lines[:first_code_idx] if _looks_like_program_name(line)
-        ][-len(codes):]
-        main_quotas = self._main_quota_by_code(lines)
-        if all(code in main_quotas for code in codes):
-            quotas = [main_quotas[code] for code in codes]
-
-        if len(names) != len(codes) or len(quotas) != len(codes):
+        section = _slice_program_section(text)
+        if section is None:
             logger.warning(
-                "VNU-UET PDF quota table shape mismatch: names=%s codes=%s quotas=%s",
-                len(names),
-                len(codes),
-                len(quotas),
+                "VnuUetProposalPdfParser: section %r not found in PDF text",
+                _SECTION_START,
             )
             return []
 
-        return [
-            ExtractedAdmissionFact(
-                school_name=school_name,
-                admission_year=ADMISSION_YEAR,
-                program_name=name,
-                program_code=code,
-                admission_method_raw=_METHOD_RAW,
-                subject_combinations_raw=_SUBJECT_COMBINATIONS,
-                quota_raw=quota,
-                source_reference=SourceReference(
-                    source_id=_SOURCE_ID,
-                    source_url=source_url,
-                    school_id=school_id,
-                    trust_level=5,
-                ),
-                confidence_score=0.82,
-                extraction_method="vnu_uet_proposal_pdf_vertical_table",
-            )
-            for name, code, quota in zip(names, codes, quotas)
-        ]
-
-    def _select_quota_block(
-        self, lines: List[str]
-    ) -> Optional[Tuple[int, int, List[str], List[str]]]:
-        for first_code_idx, last_code_idx, codes in _code_blocks(lines):
-            following = lines[last_code_idx + 1 :]
-            quotas: List[str] = []
-            for line in following:
-                if _normalize(line).startswith("tong"):
-                    break
-                if _RE_QUOTA_VALUE.match(line):
-                    quotas.append(line)
-                elif quotas:
-                    break
-
-            if len(quotas) >= len(codes):
-                return first_code_idx, last_code_idx, codes, quotas[: len(codes)]
-
-        return None
-
-    def _main_quota_by_code(self, lines: List[str]) -> dict[str, str]:
-        start_idx = next(
-            (
-                idx
-                for idx, line in enumerate(lines)
-                if "tong so luong tuyen sinh" in _normalize(line)
-            ),
-            None,
-        )
-        if start_idx is None:
-            return {}
-
-        section = lines[start_idx + 1 :]
-        quota_by_code: dict[str, str] = {}
-        codes: List[str] = []
-        quotas: List[str] = []
-
-        for line in section:
-            normalized = _normalize(line)
-            if normalized.startswith("5. ") and "CN" not in line:
-                break
-            if normalized == "tt" and not quotas:
-                codes = []
-
-            if _is_main_quota_value(line):
-                quotas.append(line)
+        facts: List[ExtractedAdmissionFact] = []
+        lines = section.splitlines()
+        for idx, line in enumerate(lines):
+            match = _RE_ROW.match(line)
+            if not match:
+                continue
+            quota_match = _RE_QUOTA_VALUE.search(match.group("after"))
+            if not quota_match:
+                logger.debug(
+                    "VnuUetProposalPdfParser: no quota after mã ngành on row %r",
+                    line,
+                )
                 continue
 
-            if quotas:
-                if len(quotas) >= len(codes) and codes:
-                    self._store_quota_segment(quota_by_code, codes, quotas)
-                codes = []
-                quotas = []
+            prev_line = lines[idx - 1] if idx > 0 else ""
+            program_name = _augment_name_with_prev_line(
+                match.group("name_raw"), prev_line
+            )
 
-            codes.extend(_RE_PROGRAM_CODE_ANYWHERE.findall(line))
+            facts.append(
+                ExtractedAdmissionFact(
+                    school_name=school_name,
+                    admission_year=ADMISSION_YEAR,
+                    program_name=program_name,
+                    program_code=match.group("code"),
+                    admission_method_raw=_METHOD_RAW,
+                    subject_combinations_raw=_SUBJECT_COMBINATIONS,
+                    quota_raw=quota_match.group(1),
+                    source_reference=SourceReference(
+                        source_id=_SOURCE_ID,
+                        source_url=source_url,
+                        school_id=school_id,
+                        trust_level=5,
+                    ),
+                    confidence_score=0.88,
+                    extraction_method="vnu_uet_proposal_pdf_row_anchored",
+                )
+            )
 
-        if quotas and len(quotas) >= len(codes) and codes:
-            self._store_quota_segment(quota_by_code, codes, quotas)
-
-        return quota_by_code
-
-    def _store_quota_segment(
-        self,
-        quota_by_code: dict[str, str],
-        codes: List[str],
-        quotas: List[str],
-    ) -> None:
-        ordered_codes = list(codes)
-        ordered_quotas = quotas[: len(ordered_codes)]
-        if (
-            len(ordered_codes) >= 2
-            and ordered_codes[0] == "CN12"
-            and ordered_codes[1] == "CN13"
-            and ordered_quotas[0] == "60"
-            and ordered_quotas[1] == "320"
-        ):
-            ordered_codes[0], ordered_codes[1] = ordered_codes[1], ordered_codes[0]
-
-        quota_by_code.update(zip(ordered_codes, ordered_quotas))
+        return facts
