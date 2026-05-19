@@ -28,7 +28,17 @@ BEGIN
 END$$;
 
 -- Add per-source uniqueness so two sources for the same logical program
--- coexist as two rows.
-ALTER TABLE canonical_admission_records
-    ADD CONSTRAINT canonical_admission_records_per_source_key
-    UNIQUE (school_id, admission_year, program_id, admission_method, source_url);
+-- coexist as two rows. Guarded so the migration is safe to re-apply.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'canonical_admission_records'::regclass
+          AND conname = 'canonical_admission_records_per_source_key'
+    ) THEN
+        ALTER TABLE canonical_admission_records
+            ADD CONSTRAINT canonical_admission_records_per_source_key
+            UNIQUE (school_id, admission_year, program_id, admission_method, source_url);
+    END IF;
+END$$;
