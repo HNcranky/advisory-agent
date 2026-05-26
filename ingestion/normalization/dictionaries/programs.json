@@ -32,7 +32,18 @@
     },
     "electronics_telecom": {
       "canonical_name": "Kỹ thuật Điện tử - Viễn thông",
-      "aliases": ["Điện tử viễn thông", "Điện tử và Viễn thông", "Electronics and Telecommunications", "ĐTVT", "ET"],
+      "aliases": [
+        "Điện tử viễn thông",
+        "Điện tử và Viễn thông",
+        "Electronics and Telecommunications",
+        "ĐTVT",
+        "ET",
+        "Kỹ thuật Điện tử - Viễn thông",
+        "Kỹ thuật Điện tử - Viễn thông (Chương trình tiên tiến)",
+        "Kỹ thuật Điện tử-Viễn thông",
+        "Điện tử-Viễn thông - ĐH Leibniz Hannover (Đức)",
+        "Điện tử - Viễn thông - ĐH Leibniz Hannover (CHLB Đức)"
+      ],
       "field": "engineering"
     },
     "mechanical_engineering": {
@@ -112,7 +123,13 @@
     },
     "logistics": {
       "canonical_name": "Logistics và Quản lý Chuỗi cung ứng",
-      "aliases": ["Logistics", "Supply Chain Management", "Chuỗi cung ứng"],
+      "aliases": [
+        "Logistics",
+        "Supply Chain Management",
+        "Chuỗi cung ứng",
+        "Logistics và Quản lý chuỗi cung ứng",
+        "Logistics và Quản lý chuỗi cung ứng (Chương trình tiên tiến)"
+      ],
       "field": "economics"
     },
     "law": {
@@ -130,7 +147,7 @@
   "hust": {
     "math_informatics": {
       "canonical_name": "Toán - Tin",
-      "aliases": ["Toán tin", "Mathematics and Informatics"],
+      "aliases": ["Toán tin", "Toán-Tin", "Toán - Tin", "Mathematics and Informatics"],
       "field": "science"
     },
     "physics": {
@@ -195,12 +212,22 @@
     },
     "english_professional": {
       "canonical_name": "Tiếng Anh Chuyên nghiệp Quốc tế",
-      "aliases": ["Tiếng Anh chuyên nghiệp quốc tế", "Professional English"],
+      "aliases": [
+        "Tiếng Anh chuyên nghiệp quốc tế",
+        "Tiếng Anh Chuyên nghiệp Quốc tế",
+        "Tiếng Anh chuyên nghiệp quốc tế (do ĐHBK Hà Nội và ĐH Plymouth Marjon - Vương quốc Anh cấp bằng)",
+        "Professional English"
+      ],
       "field": "languages"
     },
     "english_science_tech": {
       "canonical_name": "Tiếng Anh Khoa học Kỹ thuật và Công nghệ",
-      "aliases": ["Tiếng Anh KHKT", "English for Science and Technology"],
+      "aliases": [
+        "Tiếng Anh KHKT",
+        "Tiếng Anh KHKT và Công nghệ",
+        "Tiếng Anh Khoa học Kỹ thuật và Công nghệ",
+        "English for Science and Technology"
+      ],
       "field": "languages"
     },
     "korean_science_tech": {
@@ -229,13 +256,90 @@
       "field": "engineering"
     },
     "embedded_systems": {
-      "canonical_name": "Hệ thống Nhúng",
-      "aliases": ["Hệ thống nhúng", "Embedded Systems"],
+      "canonical_name": "Hệ thống Nhúng Thông minh và IoT",
+      "aliases": [
+        "Hệ thống nhúng",
+        "Embedded Systems",
+        "Hệ thống nhúng thông minh và IoT",
+        "Hệ thống nhúng thông minh và IoT (Chương trình tiên tiến)",
+        "Hệ thống nhúng thông minh và IoT (tăng cường tiếng Nhật)"
+      ],
       "field": "technology"
     },
     "ict": {
       "canonical_name": "Công nghệ Thông tin - Truyền thông",
       "aliases": ["ICT", "Truyền thông", "Information and Communication Technology"],
+      "field": "technology"
+    },
+    "pharmaceutical_chemistry": {
+      "canonical_name": "Kỹ thuật Hóa dược",
+      "aliases": [
+        "Kỹ thuật Hóa dược",
+        "Kỹ thuật hóa dược",
+        "Kỹ thuật Hóa dược (Chương trình tiên tiến)",
+        "Pharmaceutical Chemistry"
+      ],
+      "field": "science"
+    },
+    "cosmetic_chemistry": {
+      "canonical_name": "Hóa học Mỹ phẩm",
+      "aliases": [
+        "Hóa học Mỹ phẩm",
+        "Hóa học mỹ phẩm",
+        "Hóa học Mỹ phẩm (Chương trình tiên tiến)",
+        "Hóa học Mỹ phẩm (mới)",
+        "Cosmetic Chemistry"
+      ],
+      "field": "science"
+    },
+    "power_renewable_energy": {
+      "canonical_name": "Hệ thống Điện và Năng lượng Tái tạo",
+      "aliases": [
+        "Hệ thống điện và năng lượng tái tạo",
+        "Hệ thống điện và năng lượng tái tạo (Chương trình tiên tiến)",
+        "Power and Renewable Energy Systems"
+      ],
+      "field": "engineering"
+    },
+    "energy_management": {
+      "canonical_name": "Quản lý Năng lượng",
+      "aliases": [
+        "Quản lý năng lượng",
+        "Quản lý Năng lượng",
+        "Energy Management"
+      ],
+      "field": "engineering"
+    },
+    "cyber_security": {
+      "canonical_name": "An toàn Không gian số",
+      "aliases": [
+        "An toàn không gian số",
+        "An toàn không gian số (Chương trình tiên tiến)",
+        "An toàn không gian số - Cyber Security",
+        "Cyber Security",
+        "An toàn không gian mạng"
+      ],
+      "field": "technology"
+    },
+    "microelectronics_nano": {
+      "canonical_name": "Kỹ thuật Vi Điện tử và Công nghệ Nano",
+      "aliases": [
+        "Kỹ thuật Vi điện tử và Công nghệ nano",
+        "Kỹ thuật vi điện tử và công nghệ Nano",
+        "Chương trình Kỹ thuật vi điện tử và công nghệ Nano",
+        "Vi điện tử và Công nghệ Nano",
+        "Microelectronics and Nanotechnology"
+      ],
+      "field": "engineering"
+    },
+    "computational_intelligent_systems": {
+      "canonical_name": "Khoa học Tính toán cho các Hệ thống Thông minh",
+      "aliases": [
+        "Khoa học tính toán cho các hệ thống thông minh",
+        "Khoa học tính toán cho các hệ thống thông minh (CTTT)",
+        "Khoa học tính toán cho các hệ thống thông minh (mới)",
+        "Computational Science for Intelligent Systems"
+      ],
       "field": "technology"
     }
   },
