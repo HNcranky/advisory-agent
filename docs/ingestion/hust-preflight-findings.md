@@ -112,3 +112,59 @@ The plan's own bail-out language ("do not synthesize a second source"; "If no th
 PROCEED_WITH_CAVEATS
 
 (Initial verdict was ABORT — overridden by user on 2026-05-26 per Option 2 in the Recommendation section above. Caveat: HUST 2026 will not contribute conflict-bearing tuples; cross-school acceptance gate must be satisfied via VNU-UET alone. Plans 02–05 amended accordingly.)
+
+## Pipeline Execution Findings — 2026-05-26
+
+Plan: `2026-05-26-hust-05-pipeline-run-acceptance.md` executed end-to-end with no commits (per user instruction).
+
+**Query A result (HUST):** row_count = **112** (target ≥70 — PASS).
+  - Pipeline produced 136 normalized records (68 from program listing — one per per-program subpage URL — plus 68 from the announcement HTML article).
+  - DB stores 112 because the per-source upsert key `(school_id, year, program_id, admission_method, source_url)` collapses announcement-source rows where multiple raw program names normalize to the same canonical `program_id` (68 announcement records → 44 distinct upsert keys, since the announcement source has a single `source_url` shared by all 68 raw rows). Listing rows (68) survive the upsert because each lives on its own subpage URL.
+
+**Query B result (HUST):** **44 conflict-bearing tuples** found (pre-flight expectation: 0 — SURPRISE; investigated below and shown to be artifactual, not a genuine divergence).
+
+**Query B result (cross-school combined):** **44 conflict tuples** (HUST 44 + VNU-UET 0). Numeric spec gate (≥3) is met by HUST alone — but for the wrong reason; see below.
+
+### Conflict-Bearing Programs (HUST) — Artifactual
+
+All 44 HUST tuples surfaced by Query B match the same pattern: at least one listing-subpage row has `quota = {"value": 0, "quota_type": "exact"}` while the announcement-source row has the real published value. Sample:
+
+| program_id        | admission_method (concatenated)         | quota (listing rows)          | quota (announcement row) | sources                                                                                                                                                                                |
+|-------------------|------------------------------------------|-------------------------------|--------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `accounting`      | XTTN; THPT; ĐGTD                         | `{"value": 0}`                | `{"value": 80}`          | `…/training-cate/…/ke-toan-chuong-trinh-tien-tien` ; `…/tin-tuc/…thong-tin-tuyen-sinh…`                                                                                                |
+| `computer_science`| XTTN; THPT; ĐGTD                         | `{"value": 0}` × 6 subpages   | `{"value": 120}`         | `…/cntt-khoa-hoc-may-tinh`, `…/cntt-ky-thuat-may-tinh`, `…/cong-nghe-thong-tin-global-ict`, `…/cong-nghe-thong-tin-viet-nhat-…`, `…/cong-nghe-thong-tin-viet-phap-…`, `…/khoa-hoc-may-tinh-dh-troy-hoa-ky` ; announcement |
+| (42 more)         | (same method string)                     | `{"value": 0}`                | `{"value": N>0}`         | …                                                                                                                                                                                      |
+
+### Sanity Check (Task 7 of plan)
+
+Quota values for `computer_science` / `XTTN; THPT; ĐGTD` inspected (Task 7 Step 1):
+- 6 listing subpages: all `{"value": 0, "quota_type": "exact"}` — corresponds to empty `Chỉ tiêu tuyển sinh:` field on each program's subpage card.
+- 1 announcement row: `{"value": 120, "quota_type": "exact"}` — matches the announcement-article table row "Chỉ tiêu dự kiến: 120".
+
+Semantic-measurement re-confirmation (Task 7 Step 3):
+- Pre-flight decision: "comparison axis is program-total quota per `program_code`. Apples-to-apples. No VNU-UET-style measurement mismatch."
+- Inspection of these specific rows: the announcement value IS a program-total; the listing's `0` is **not** a real program-total but the parser's encoding of an empty field. Format match (`quota_type=exact`) but semantic mismatch: zero ≠ missing.
+
+**Conclusion: conflict is artifactual, not genuine.** This matches the prediction in the pre-flight findings ("a blank-vs-number pair is 'missing data', not 'divergence'") — the live HUST data has not drifted; the parser is exposing a known modeling gap.
+
+**Root cause (suggested fix, NOT applied):** `HustProgramParser` (or `quota_parser` for empty input) treats an absent `Chỉ tiêu tuyển sinh:` field as `value: 0` instead of leaving the fact's `quota_raw` unset (so the downstream record gets `quota = NULL` and Query B's `quota IS NOT NULL` filter excludes it). Once fixed, HUST Query B is expected to return 0 as originally predicted.
+
+### Cross-school Acceptance Gate
+
+- Spec gate: cross-school Query B (HUST + VNU-UET combined) ≥3 conflict-bearing tuples.
+- Observed: 44 tuples — gate is **numerically met** but entirely from HUST artifacts. VNU-UET contributed **0** conflict tuples in this DB state.
+- **Note on VNU-UET state:** The DB initially contained zero VNU-UET rows when the plan started; the plan's prerequisite ("VNU-UET pipeline still produces records") was met as a smoke test but did not persist. To exercise the cross-school query meaningfully, this run also persisted VNU-UET (20 records from `Thong-tin-tuyen-sinh-DHCQ-nam-2026-cap-nhat.pdf`). Only one VNU-UET source landed (the proposal PDF) — no second VNU-UET source was active in this run, so no within-VNU-UET pairs are formed and Query B sees zero. Whatever cross-source divergence VNU-UET previously demonstrated requires its second source to be re-loaded into this DB.
+- Recommended follow-up: (a) fix the HUST listing parser to emit `quota: null` for empty `Chỉ tiêu tuyển sinh:` so HUST Query B returns the predicted 0, and (b) re-run VNU-UET with both registered sources persisted so VNU-UET supplies the ≥3 genuine cross-school conflicts the spec depends on.
+
+### Auxiliary Verifications
+
+- `pytest tests/ingestion/` — 22 passed (Task 1 Step 1).
+- VNU-UET pipeline smoke test — 20 records, OK (Task 1 Step 2).
+- Spot-check (Task 4) — every HUST row has non-null `source_url`, non-null `quota`, and the expected `program_name_canonical` grouping; two-rows-per-program pattern visible.
+
+### Status
+
+- Plan tasks 1–7 executed successfully.
+- Task 8 Step 2 (`git commit`) intentionally skipped per user instruction ("không tạo commit nào").
+- Task 8 Step 3 cleanup not run — `docs/ingestion/_hust_pipeline_output.json` left in place for inspection.
+- **Final self-check:** 5 of 6 items pass; the "HUST Query B = 0" item is replaced by "Query B surfaced 44 artifactual tuples; root cause identified, fix not applied per no-commit instruction".
