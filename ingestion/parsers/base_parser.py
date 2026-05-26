@@ -116,3 +116,9 @@ class ParserRegistry:
             self.register(VnuUetProposalPdfParser())
         except ImportError as e:
             logger.warning(f"Could not load VnuUetProposalPdfParser: {e}")
+
+        try:
+            from ingestion.parsers.hust_announcement_html_parser import HustAnnouncementHtmlParser
+            self.register(HustAnnouncementHtmlParser())
+        except ImportError as e:
+            logger.warning(f"Could not load HustAnnouncementHtmlParser: {e}")
