@@ -35,7 +35,12 @@
         "xét tuyển tài năng",
         "tuyển sinh tài năng",
         "xét tuyển sớm",
-        "phương thức xét tuyển tài năng"
+        "phương thức xét tuyển tài năng",
+        "Xét tuyển bằng Giải thưởng HSG QG-QT/Chứng chỉ Quốc tế/HSNL",
+        "Giải thưởng HSG QG-QT",
+        "Giải thưởng HSG",
+        "Chứng chỉ Quốc tế",
+        "HSNL"
       ]
     },
     "combined": {
@@ -57,7 +62,9 @@
         "Đánh giá tư duy",
         "TSA",
         "bài thi tư duy",
-        "kỳ thi đánh giá tư duy"
+        "kỳ thi đánh giá tư duy",
+        "bài kiểm tra tư duy",
+        "Xét tuyển dựa trên kết quả bài kiểm tra tư duy"
       ]
     }
   },
