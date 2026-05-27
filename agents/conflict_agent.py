@@ -1,8 +1,42 @@
-from services.retrieval_service import detect_conflicts
+from services.conflict.comparison_agent import compare
+from services.conflict.detection import detect_quota_conflicts
+from services.conflict.evidence_agent import package_evidence
+from services.conflict.resolution_agent import resolve
 from state import AgentState
 
 
+def _mark_uncertain(state: AgentState, conflict_key: str, field_name: str) -> None:
+    for candidate in state.retrieved_programs:
+        key = ":".join(
+            [
+                candidate.school_id,
+                str(candidate.admission_year),
+                candidate.program_id or candidate.program_name,
+                candidate.admission_method or "unknown_method",
+            ]
+        )
+        if key == conflict_key and field_name not in candidate.data_uncertain_fields:
+            candidate.data_uncertain_fields.append(field_name)
+
+
 def conflict_agent(state: AgentState):
-    detected = detect_conflicts(state.retrieved_programs)
-    state.conflicts = list(dict.fromkeys(state.conflicts + detected))
+    records = detect_quota_conflicts(state.retrieved_programs)
+    outcomes = []
+
+    for record in records:
+        options = package_evidence(record, state.retrieved_programs)
+        record.options = options
+        report = compare(options)
+        outcome = resolve(record, report)
+        outcomes.append(outcome)
+        if outcome.status == "unresolved":
+            _mark_uncertain(state, record.conflict_key, record.field_name)
+
+    state.conflict_records = records
+    state.resolution_outcomes = outcomes
+    state.conflicts = [
+        outcome.rationale
+        for outcome in outcomes
+        if outcome.status == "unresolved" or outcome.used_llm_tiebreaker
+    ]
     return state

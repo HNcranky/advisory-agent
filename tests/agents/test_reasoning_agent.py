@@ -63,3 +63,28 @@ def test_reasoning_agent_marks_unknown_when_missing_critical():
     output = reasoning_agent(state)
 
     assert output.ranked_recommendations[0].band == "unknown"
+
+
+def test_uncertain_quota_candidate_is_not_safe_band():
+    state = AgentState(
+        user_query="Tu van",
+        student_profile=StudentProfile(total_score=29, subject_combination="A00"),
+        retrieved_programs=[
+            CandidateProgram(
+                candidate_id="vnu_uet:2026:cntt:thpt_score",
+                school_id="vnu_uet",
+                school_name="Dai hoc Cong nghe - DHQGHN",
+                admission_year=2026,
+                program_id="cntt",
+                program_name="Cong nghe thong tin",
+                admission_method="thpt_score",
+                subject_combinations=["A00"],
+                data_uncertain_fields=["quota"],
+            )
+        ],
+    )
+
+    output = reasoning_agent(state)
+
+    assert output.ranked_recommendations[0].band != "safe"
+    assert "So lieu han ngach chua duoc xac nhan giua cac nguon." in output.ranked_recommendations[0].cautions

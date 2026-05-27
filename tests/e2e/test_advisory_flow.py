@@ -1,8 +1,10 @@
+import agents.conflict_agent as conflict_agent_module
 import agents.profile_agent as profile_agent_module
 import agents.policy_agent as policy_agent_module
 import agents.retrieval_agent as retrieval_agent
 from agents.models import CandidateProgram, Evidence, StudentProfile
 from graph import graph
+from services.conflict.models import ConflictRecord, EvidenceOption
 from services.inference.models import InferenceResult
 from state import AgentState
 
@@ -69,7 +71,6 @@ def test_advisory_flow_returns_policy_checked_answer(monkeypatch):
         "fetch_candidates",
         lambda filters, limit=100: _mock_candidates(),
     )
-    monkeypatch.setattr(retrieval_agent, "detect_conflicts", lambda candidates: [])
 
     state = AgentState(
         user_query="Em duoc 27 diem A00 muon hoc Cong nghe thong tin o HUST",
@@ -121,9 +122,36 @@ def test_advisory_flow_surfaces_uncertainty_for_policy_ambiguity(monkeypatch):
         lambda filters, limit=100: _mock_candidates(),
     )
     monkeypatch.setattr(
-        retrieval_agent,
-        "detect_conflicts",
-        lambda candidates: ["Quota conflict for Khoa hoc May tinh at HUST"],
+        conflict_agent_module,
+        "detect_quota_conflicts",
+        lambda candidates: [
+            ConflictRecord(
+                conflict_key="hust:2026:computer_science:thpt_score",
+                field_name="quota",
+                school_id="hust",
+                school_name="HUST",
+                admission_year=2026,
+                program_id="computer_science",
+                program_name="Khoa hoc May tinh",
+                admission_method="thpt_score",
+                options=[
+                    EvidenceOption(
+                        evidence_id="mock://a|quota",
+                        source_url="mock://a",
+                        trust_level=2,
+                        confidence_score=0.9,
+                        value=120,
+                    ),
+                    EvidenceOption(
+                        evidence_id="mock://b|quota",
+                        source_url="mock://b",
+                        trust_level=2,
+                        confidence_score=0.9,
+                        value=150,
+                    ),
+                ],
+            )
+        ],
     )
     monkeypatch.setattr(policy_agent_module, "build_default_gateway", lambda: fake_gateway)
 
@@ -150,7 +178,6 @@ def test_advisory_flow_handles_empty_retrieval(monkeypatch):
         lambda user_query, gateway: _mock_profile(),
     )
     monkeypatch.setattr(retrieval_agent, "fetch_candidates", lambda filters, limit=100: [])
-    monkeypatch.setattr(retrieval_agent, "detect_conflicts", lambda candidates: [])
 
     state = AgentState(
         user_query="Em duoc 27 diem A00 muon hoc Cong nghe thong tin o HUST",
@@ -161,3 +188,30 @@ def test_advisory_flow_handles_empty_retrieval(monkeypatch):
     assert "Chua co de xuat phu hop" in result["final_answer"]
     assert result["policy_decision"] is not None
     assert "empty_retrieval" in result["policy_decision"].policy_flags
+
+
+def test_graph_mock_retrieval_conflict_reaches_final_answer(monkeypatch):
+    monkeypatch.setenv("ADVISORY_MOCK_CONFLICTS", "1")
+
+    def fail_get_cursor(*args, **kwargs):
+        raise AssertionError("DB should not be used by retrieval in mock mode")
+
+    monkeypatch.setattr("services.retrieval_service.get_cursor", fail_get_cursor)
+    monkeypatch.setattr(
+        profile_agent_module,
+        "build_profile_with_gateway",
+        lambda user_query, gateway: StudentProfile(
+            total_score=27,
+            subject_combination="A00",
+            preferred_majors=["cntt"],
+            preferred_schools=["vnu_uet"],
+            missing_slots=[],
+        ),
+    )
+
+    result = graph.invoke(
+        AgentState(user_query="Tu van nganh CNTT UET nam 2026").model_dump()
+    )
+
+    assert "final_answer" in result
+    assert "Xac minh du lieu" in result["final_answer"]

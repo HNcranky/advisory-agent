@@ -98,7 +98,7 @@ def test_fetch_candidates_mock_allows_matching_major_name(monkeypatch):
     assert len(candidates) == 3
 
 
-def test_retrieval_agent_surfaces_mock_quota_conflict_in_legacy_conflicts(monkeypatch):
+def test_retrieval_agent_keeps_mock_conflicts_for_conflict_node(monkeypatch):
     monkeypatch.setenv("ADVISORY_MOCK_CONFLICTS", "1")
     state = AgentState(
         user_query="Tu van CNTT UET",
@@ -113,6 +113,4 @@ def test_retrieval_agent_surfaces_mock_quota_conflict_in_legacy_conflicts(monkey
     output = retrieval_agent(state)
 
     assert len(output.retrieved_programs) == 3
-    assert output.conflicts == [
-        "Quota conflict for Cong nghe thong tin at Dai hoc Cong nghe - DHQGHN"
-    ]
+    assert output.conflicts == []

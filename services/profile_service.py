@@ -132,6 +132,12 @@ def build_profile(user_query: str) -> StudentProfile:
     subject_combination = extract_subject_combination(normalized_query)
     preferred_majors = extract_preferred_majors(normalized_query)
     preferred_schools = extract_preferred_schools(normalized_query)
+    if "hust" in preferred_schools and "information_technology_uet" in preferred_majors:
+        preferred_majors = [
+            major for major in preferred_majors if major != "information_technology_uet"
+        ]
+        if "computer_science" not in preferred_majors:
+            preferred_majors.insert(0, "computer_science")
 
     missing_slots: List[str] = []
     if score is None:

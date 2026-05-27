@@ -6,6 +6,7 @@ from agents.models import (
     RankedRecommendation,
     StudentProfile,
 )
+from services.conflict.models import EvidenceOption, ResolutionOutcome
 from state import AgentState
 
 
@@ -67,3 +68,36 @@ def test_explanation_agent_adds_follow_up_prompt():
     output = explanation_agent(state)
 
     assert "Thong tin can bo sung:" in output.final_answer
+
+
+def test_explanation_includes_data_verification_section_for_resolved_outcome():
+    option = EvidenceOption(
+        evidence_id="mock://vnu/proposal-pdf|quota",
+        source_url="mock://vnu/proposal-pdf",
+        trust_level=3,
+        value=150,
+    )
+    state = AgentState(
+        user_query="Tu van",
+        resolution_outcomes=[
+            ResolutionOutcome(
+                conflict_key="vnu_uet:2026:cntt:thpt_score",
+                field_name="quota",
+                school_id="vnu_uet",
+                school_name="Dai hoc Cong nghe - DHQGHN",
+                program_name="Cong nghe thong tin",
+                status="resolved",
+                resolved_value=150,
+                chosen_evidence=option,
+                rationale="Resolved by deterministic comparison.",
+                decision_axes=["trust_level"],
+            )
+        ],
+    )
+
+    output = explanation_agent(state)
+
+    assert "## Xac minh du lieu" in output.final_answer
+    assert "Cong nghe thong tin" in output.final_answer
+    assert "150" in output.final_answer
+    assert "Nguon mock: VNU proposal PDF" in output.final_answer

@@ -105,6 +105,25 @@ Open <http://127.0.0.1:8000/> in a browser. The first visit creates an anonymous
 
 Stale local session tokens (e.g. after the database is wiped) are detected on startup and cleared automatically — refresh the page to recover.
 
+### Conflict-aware advisory demo
+
+For a stable local demo that does not require Postgres conflict rows:
+
+```powershell
+$env:ADVISORY_MOCK_CONFLICTS="1"
+pytest tests/e2e/test_advisory_flow.py -k mock -v
+```
+
+The mock mode returns in-memory `CandidateProgram` rows with conflicting quota values. It is only for local development, automated tests, and fallback demos. Do not use it as evidence that the real-data dataset is complete.
+
+For phase completion against real ingested data:
+
+```powershell
+pytest -m requires_real_dataset -v
+```
+
+This requires a reachable Postgres database and `tests/e2e/fixtures/real_dataset_dump.sql` exported from accepted HUST/VNU-UET ingestion. The real-data test is the thesis/demo-prep gate; mock mode does not replace it.
+
 ## Troubleshooting
 
 - **"GEMINI_API_KEY is not configured"** — step 2 was skipped or run in a different shell than step 4. Re-run the export block in the same PowerShell window before starting uvicorn.
