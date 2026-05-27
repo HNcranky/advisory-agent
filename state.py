@@ -10,6 +10,7 @@ from agents.models import (
     RankedRecommendation,
     StudentProfile,
 )
+from services.conflict.models import ConflictRecord, ResolutionOutcome
 
 try:
     from ingestion.config.settings import ADMISSION_YEAR
@@ -30,6 +31,8 @@ class AgentState(BaseModel):
     retrieval_missing_data: List[str] = Field(default_factory=list)
 
     conflicts: List[str] = Field(default_factory=list)
+    conflict_records: List[ConflictRecord] = Field(default_factory=list)
+    resolution_outcomes: List[ResolutionOutcome] = Field(default_factory=list)
     eligibility_checks: List[EligibilityCheck] = Field(default_factory=list)
     ranked_recommendations: List[RankedRecommendation] = Field(default_factory=list)
 

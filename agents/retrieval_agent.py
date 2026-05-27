@@ -1,6 +1,5 @@
 from services.retrieval_service import (
     build_retrieval_filters,
-    detect_conflicts,
     fetch_candidates,
 )
 from state import AgentState
@@ -27,5 +26,4 @@ def retrieval_agent(state: AgentState):
         ]
 
     state.retrieved_programs = candidates
-    state.conflicts = detect_conflicts(candidates)
     return state
