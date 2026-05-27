@@ -110,3 +110,46 @@ Quota values for `CN1` / `Xét tuyển tài năng`:
 Both values normalize to the same JSONB shape and quota type. The conflict signal is therefore not caused by a quota parser format mismatch. It reflects the pre-flight source comparison: homepage method/allocation quota versus PDF main quota.
 
 Conclusion: SQL acceptance gate PASSED. No commit was created because the user explicitly requested no commits.
+
+## Conflict-Aware Slice 2 Re-Run - 2026-05-27
+
+Outcome: PARTIAL_PASS_BLOCKED_ON_REAL_CONFLICT_QUALITY
+
+Environment:
+
+- Docker Compose Postgres was started from this repo.
+- Host port `5432` conflicted with an existing local `postgres` process, so the compose DB was recreated on host port `55432`.
+- Commands were run with `DB_HOST=127.0.0.1`, `DB_PORT=55432`, and `PYTHONIOENCODING=utf-8`.
+- After uninstalling the local PostgreSQL service, the compose DB was recreated again on the default host port `5432`. The default app config `localhost:5432` then connected to the compose DB successfully.
+
+Schema verification:
+
+- `python -m db.setup_db` applied migrations `001` through `010` successfully.
+- `canonical_admission_records_per_source_key` exists with index definition:
+  `CREATE UNIQUE INDEX canonical_admission_records_per_source_key ON public.canonical_admission_records USING btree (school_id, admission_year, program_id, admission_method, source_url)`.
+
+Ingestion execution:
+
+- `python -m ingestion.main --school vnu_uet` completed and produced 20 normalized records, but the CLI prints records and does not persist them.
+- `python -m ingestion.main --school hust` completed and produced 136 normalized records, but the CLI prints records and does not persist them.
+- For DB acceptance, the repo's integration path was used: `IngestionPipeline().run_for_school(...)` followed by `save_canonical_records(records)`.
+- Persisted records: `vnu_uet` produced 20 / saved 20; `hust` produced 136 / saved 136.
+
+Acceptance query results:
+
+- Query A returned `hust` row_count = 112 and `vnu_uet` row_count = 20 for admission year 2026.
+- Query B returned 44 candidate conflict-bearing tuples.
+- Re-running Query A and Query B on default `localhost:5432` returned the same results: `hust` row_count = 112, `vnu_uet` row_count = 20, Query B candidate count = 44, and non-zero conflict count = 0.
+- Spot-check of the first tuple, `hust/accounting`, showed:
+  - Main announcement source quota: `{"value": 80, "quota_type": "exact"}`.
+  - Program detail source quota: `{"value": 0, "quota_type": "exact"}`.
+- This is not an acceptable like-for-like quota conflict. The `0` value appears to be a missing/placeholder quota extraction artifact from HUST detail pages.
+- Filtering candidate tuples to exclude any zero-valued quota artifacts returned 0 non-zero conflict tuples.
+
+Conclusion:
+
+- Schema and writer acceptance passed.
+- Real ingestion produced rows for both target schools.
+- The real conflict-quality gate did not pass because Query B candidates are currently driven by `0` quota artifacts, not trustworthy quota divergence.
+- `tests/e2e/fixtures/real_dataset_dump.sql` was not exported. The parser/normalizer should be fixed or sources re-curated before exporting a real fixture.
+- No commit was created.
