@@ -3,6 +3,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from agents.models import CandidateProgram, Evidence, StudentProfile
 from ingestion.storage.db_connection import get_cursor
+from services.mock_retrieval import (
+    build_mock_conflict_candidates,
+    mock_conflicts_enabled,
+)
 
 
 def _to_dict(value: Any) -> Optional[Dict[str, Any]]:
@@ -45,6 +49,10 @@ def build_retrieval_filters(profile: StudentProfile, admission_year: int) -> Dic
 
 
 def fetch_candidates(filters: Dict[str, Any], limit: int = 100) -> List[CandidateProgram]:
+    # ADVISORY_MOCK_CONFLICTS keeps local/demo conflict retrieval off the DB path.
+    if mock_conflicts_enabled():
+        return build_mock_conflict_candidates(filters=filters, limit=limit)
+
     where_clauses: List[str] = ["admission_year = %s"]
     params: List[Any] = [filters["admission_year"]]
 
