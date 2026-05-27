@@ -38,6 +38,7 @@ class CandidateProgram(BaseModel):
     tuition: Optional[Dict[str, Any]] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
     evidence: List[Evidence] = Field(default_factory=list)
+    data_uncertain_fields: List[str] = Field(default_factory=list)
 
 
 class EligibilityCheck(BaseModel):
