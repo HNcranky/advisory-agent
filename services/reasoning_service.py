@@ -80,6 +80,10 @@ def reason_candidates(
 
         has_missing_critical = bool(profile.missing_slots)
         band = _score_to_band(score, has_missing_critical)
+        if "quota" in candidate.data_uncertain_fields:
+            if band == "safe":
+                band = "match"
+            cautions.append("So lieu han ngach chua duoc xac nhan giua cac nguon.")
         summary = f"{candidate.program_name} at {candidate.school_name}: {band} fit."
 
         checks.append(

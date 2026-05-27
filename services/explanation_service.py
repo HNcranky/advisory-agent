@@ -1,6 +1,8 @@
 from typing import Dict, List, Optional
 
 from agents.models import CandidateProgram, PolicyDecision, RankedRecommendation, StudentProfile
+from services.conflict.models import ResolutionOutcome
+from services.conflict.source_labels import label_for_source
 
 
 def _profile_summary(profile: StudentProfile) -> str:
@@ -23,6 +25,7 @@ def build_explanation(
     recommendations: List[RankedRecommendation],
     candidates: List[CandidateProgram],
     policy: Optional[PolicyDecision],
+    resolution_outcomes: Optional[List[ResolutionOutcome]] = None,
 ) -> str:
     lines: List[str] = []
     lines.append(_profile_summary(profile))
@@ -72,4 +75,26 @@ def build_explanation(
             "Thong tin can bo sung: diem, to hop mon, nganh/truong uu tien de nang do chinh xac."
         )
 
+    lines.extend(_verification_lines(resolution_outcomes or []))
+
     return "\n".join(lines)
+
+
+def _verification_lines(outcomes: List[ResolutionOutcome]) -> List[str]:
+    if not outcomes:
+        return []
+    lines = ["## Xac minh du lieu"]
+    for outcome in outcomes:
+        if outcome.status == "resolved" and outcome.chosen_evidence:
+            lines.append(
+                f"- Han ngach nganh {outcome.program_name} tai {outcome.school_name}: "
+                f"he thong tim thay nhieu nguon khac nhau. Su dung gia tri "
+                f"{outcome.resolved_value} tu {label_for_source(outcome.chosen_evidence.source_url)} "
+                f"vi {', '.join(outcome.decision_axes) or outcome.rationale}."
+            )
+        else:
+            lines.append(
+                f"- Han ngach nganh {outcome.program_name} tai {outcome.school_name}: "
+                "thong tin mau thuan giua cac nguon. Ban nen xac minh truc tiep voi truong truoc khi dang ky."
+            )
+    return lines

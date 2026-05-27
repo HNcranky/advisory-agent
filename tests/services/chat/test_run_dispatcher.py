@@ -49,3 +49,35 @@ def test_dispatcher_completes_run_and_posts_result_message():
     assert repo.completed[0] == 7
     assert repo.completed[2] == "De xuat phu hop"
     assert repo.messages[-1][2] == "assistant_result"
+
+
+def test_dispatcher_posts_mock_conflict_verification_result_message(monkeypatch):
+    monkeypatch.setenv("ADVISORY_MOCK_CONFLICTS", "1")
+    repo = FakeRepository()
+    dispatcher = RunDispatcher(
+        repository=repo,
+        runner=lambda profile_state, latest_user_message: {
+            "final_answer": "Goi y CNTT\n\n## Xac minh du lieu\n- Han ngach co mau thuan."
+        },
+        executor=InlineExecutor(),
+    )
+
+    dispatcher.submit(
+        session_token="session-456",
+        run_id=8,
+        latest_user_message="Tu van nganh Cong nghe thong tin UET nam 2026",
+        profile_state=ChatProfileState(
+            admission_year=2026,
+            total_score=27.0,
+            preferred_majors=["cntt"],
+            preferred_schools=["vnu_uet"],
+        ),
+    )
+
+    assert repo.completed[2].count("Xac minh du lieu") == 1
+    assert repo.messages[-1] == (
+        "session-456",
+        "assistant",
+        "assistant_result",
+        repo.completed[2],
+    )
