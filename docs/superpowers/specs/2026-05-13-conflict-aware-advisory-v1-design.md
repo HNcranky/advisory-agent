@@ -2,7 +2,7 @@
 
 ## Summary
 
-Build the Evidence / Comparison / Resolution multi-agent layer from the original `Agentic Admission Advisory` spec (§III "Conflict handling"), wire it into the advisory graph between retrieval and reasoning, and demonstrate it on a deliberately curated dataset of 2 Hanoi schools (HUST and VNU-UET) where the same program has conflicting **quota** values across an official website and a published admission proposal PDF. Resolution rationale surfaces in the student-facing chat answer ("we found two reports of X; we trusted source A because…"). Freshness scoring, additional conflict types, and broader dataset scale-up are explicitly deferred to later phases.
+Build the Evidence / Comparison / Resolution multi-agent layer from the original `Agentic Admission Advisory` spec (§III "Conflict handling"), wire it into the advisory graph between retrieval and reasoning, and demonstrate it on a deliberately curated dataset of 2 Hanoi schools (HUST and VNU-UET) where the same program has conflicting **quota** values across an official website and a published admission proposal PDF. Add an opt-in mock retrieval mode (`ADVISORY_MOCK_CONFLICTS=1`) so the conflict-aware flow can be tested and demoed with stable synthetic `CandidateProgram` rows before real HUST/VNU-UET data is ready. Resolution rationale surfaces in the student-facing chat answer ("we found two reports of X; we trusted source A because…"). Freshness scoring, additional conflict types, and broader dataset scale-up are explicitly deferred to later phases.
 
 This phase moves the project's central architectural claim — *"the system handles distributed, heterogeneous, conflicting admission data"* — from scaffolding to operational evidence on real data. For a thesis defense, the test of the architecture is whether it survives contact with real cross-source disagreement; this phase produces that survival evidence with the minimum surface area needed.
 
@@ -14,6 +14,7 @@ Conflict handling exists only at the surface today:
 - `agents/conflict_agent.py` exists but is not in the graph. The current graph runs profile → retrieve → reason → policy → explain. Conflicts only enter the system as inputs to `policy_agent`'s ambiguity-warning path.
 - `services/conflict_resolution_service.py:resolve_conflicts_with_gateway` exists but is not called anywhere. It returns an unstructured `{resolution: str, uncertainty_reasons: [...]}` blob.
 - The dataset is fixture-bound: one HUST program card. No real conflict has ever flowed through the pipeline.
+- The conflict-aware graph depends on real conflicting rows that are slow to curate. Without an opt-in mock retrieval path, developers cannot run a stable end-to-end conflict demo until Postgres contains suitable HUST/VNU-UET records.
 
 That means the central architectural claim of the project has scaffolding but no operational evidence. For a thesis demo this is the load-bearing weakness: the defense question "can you show this resolving a real conflict?" currently has no answer.
 
@@ -27,6 +28,7 @@ The phase closes that gap with the minimum surface area needed: structured confl
 - Add a Resolution agent that applies the resolution policy and returns either a decisive resolution (`resolved_value`, `chosen_evidence_id`, `rationale`) or an explicit `unresolved` state with an uncertainty reason. The LLM is used only as a tiebreaker for marginal cases, behind the existing inference gateway, and only flips to resolved on `confidence == "high"`.
 - Wire conflict resolution into the advisory graph as a node between `retrieve` and `reason`. Downstream reasoning sees either resolved values or candidates marked `data_uncertain`.
 - Curate a real dataset of 2 Hanoi schools (HUST + VNU-UET) where the same program's quota differs across two official sources, in admission year 2026. Ingest both through the existing pipeline.
+- Add an opt-in mock retrieval mode controlled by env/config (`ADVISORY_MOCK_CONFLICTS=1`) that returns 2-3 synthetic `CandidateProgram` rows with the same `(school_id, admission_year, program_id, admission_method)` and different quota values, without opening a DB connection.
 - Surface resolution rationale in the chat-facing final answer when a conflict was resolved or left unresolved, in Vietnamese, via deterministic templates.
 - Block candidates with uncertain quota from the top recommendation band but still show them in a lower band with a clear caution.
 - Provide unit tests for each new agent and an integration test that proves a real ingested conflict survives end-to-end into the explanation.
@@ -42,6 +44,7 @@ The phase closes that gap with the minimum surface area needed: structured confl
 - Building an operator console to inspect conflicts. Operators read the database directly for this phase.
 - UI changes beyond what's needed to render the resolution rationale (no new panels, no new pages, no structured recommendation cards).
 - Retiring the legacy `state.conflicts: List[str]` field. It survives in this phase as a compatibility shim populated only by unresolved or LLM-tiebroken outcomes.
+- Treating mock conflicts as evaluation data. The mock path is for unit/integration tests, local demos, and development unblock only; it is not evidence that the real-data thesis claim has been satisfied.
 
 ## Recommended Approach
 
@@ -50,6 +53,8 @@ The system should add one new node (`conflict`) to the advisory graph between re
 This is preferred over a single combined "conflict-handler" agent because the original architecture document explicitly distinguishes Evidence, Comparison, and Resolution responsibilities, and keeping them separate matches the thesis story and makes each independently testable.
 
 It is preferred over an LLM-led resolution path because (a) the Gemini-backbone design principle is "deterministic logic first, LLM for interpretation," and (b) the defense answer to "how does it decide?" should be a readable rule set, not an opaque prompt.
+
+The retrieval mock should live at the retrieval-service boundary, not inside the conflict node. `retrieval_agent` should continue to call `fetch_candidates(filters=...)`; `fetch_candidates` should check `ADVISORY_MOCK_CONFLICTS` before constructing SQL and return synthetic candidates when the flag is truthy. This keeps the graph, conflict detection, comparison, resolution, reasoning, policy, and explanation layers exercising the same runtime path in tests and demos. It also keeps production behavior obvious: when the flag is unset, retrieval uses Postgres exactly as it does today.
 
 ## Architecture
 
@@ -82,6 +87,7 @@ The single new node is `conflict`. Everything upstream (retrieval) and downstrea
 ### New modules
 
 - `agents/conflict_agent.py` — already exists as a stub; gets rewritten as the orchestrator for the conflict node.
+- `services/mock_retrieval.py` — new small module returning stable synthetic `CandidateProgram` rows when `ADVISORY_MOCK_CONFLICTS=1`. It has no database dependency and is imported only by `services/retrieval_service.py`.
 - `services/conflict/` — new package containing:
   - `models.py` — `ConflictRecord`, `EvidenceOption`, `ComparisonReport`, `ResolutionOutcome`.
   - `detection.py` — replaces the string-emission logic in `retrieval_service.detect_conflicts` with structured `ConflictRecord` construction. Groups candidates by `(school_id, admission_year, program_id_or_name, admission_method)` and, for the quota field, emits one `ConflictRecord` per group when distinct quota values exist.
@@ -156,6 +162,123 @@ builder.add_edge("conflict", "reason")
 `policy_agent` keeps its ambiguity escalation. Its input becomes structured: it reads `state.resolution_outcomes` indirectly via the legacy `state.conflicts` shim, which only fires the ambiguity path when conflicts genuinely remain.
 
 `explanation_agent` reads `state.resolution_outcomes` and, when any resolved or unresolved outcomes exist, includes a Vietnamese "Xác minh dữ liệu" section in `final_answer`.
+
+### Mock retrieval mode
+
+Mock retrieval is an opt-in test/demo source for `state.retrieved_programs`; it is not a second conflict detector and it does not write to the database.
+
+**Config surface**
+
+- Env var: `ADVISORY_MOCK_CONFLICTS=1`
+- Truthy values: `1`, `true`, `yes`, `on` (case-insensitive)
+- Default: disabled
+- Documentation: add the var to `.env.example` with a comment that it is local/test/demo only
+
+**Runtime placement**
+
+`services/retrieval_service.py:fetch_candidates(filters, limit=100)` starts with:
+
+```python
+if mock_conflicts_enabled():
+    return build_mock_conflict_candidates(filters=filters, limit=limit)
+```
+
+Only after this guard does it build SQL or call `get_cursor`. This is the key guarantee: when mock mode is enabled, the advisory flow does not touch Postgres for retrieval.
+
+`retrieval_agent` remains thin:
+
+1. Build filters from the profile and admission year.
+2. Call `fetch_candidates(filters=filters)`.
+3. Apply the existing subject-combination filter.
+4. Store `state.retrieved_programs`.
+
+The conflict-aware node then receives synthetic candidates through the same state field it receives real DB candidates from. This exercises the same detection, evidence packaging, comparison, resolution, reasoning, policy, and explanation code paths.
+
+**Mock candidate shape**
+
+`build_mock_conflict_candidates` returns 2-3 `CandidateProgram` objects with:
+
+- Same `school_id`, `admission_year`, `program_id`, and `admission_method`.
+- Same `candidate_id` conflict key shape as production retrieval currently uses. If production dedup later requires unique row IDs, append a source suffix only in a separate `source_record_id`/metadata field; do not change conflict grouping.
+- Different `quota` values, normalized to the same dict shape, for example `{"value": 120, "unit": "students"}` and `{"value": 150, "unit": "students"}`.
+- Distinct `Evidence.source_url`, `Evidence.trust_level`, and `Evidence.confidence_score` values so the Comparison agent can resolve deterministically.
+- `metadata["mock_conflict"] = True` and `metadata["mock_dataset"] = "advisory_conflict_v1"` so logs/tests can identify synthetic candidates without depending on source URLs.
+
+Recommended stable fixture:
+
+```python
+[
+    CandidateProgram(
+        candidate_id="vnu_uet:2026:cntt:thpt_score",
+        school_id="vnu_uet",
+        school_name="Dai hoc Cong nghe - DHQGHN",
+        admission_year=2026,
+        program_id="cntt",
+        program_name="Cong nghe thong tin",
+        admission_method="thpt_score",
+        subject_combinations=["A00", "A01"],
+        quota={"value": 120, "unit": "students"},
+        evidence=[
+            Evidence(
+                source_url="mock://uet/program-page",
+                school_name="Dai hoc Cong nghe - DHQGHN",
+                admission_year=2026,
+                field_name="quota",
+                normalized_value={"value": 120, "unit": "students"},
+                trust_level=2,
+                confidence_score=0.86,
+            )
+        ],
+        metadata={"mock_conflict": True, "mock_dataset": "advisory_conflict_v1"},
+    ),
+    CandidateProgram(
+        candidate_id="vnu_uet:2026:cntt:thpt_score",
+        school_id="vnu_uet",
+        school_name="Dai hoc Cong nghe - DHQGHN",
+        admission_year=2026,
+        program_id="cntt",
+        program_name="Cong nghe thong tin",
+        admission_method="thpt_score",
+        subject_combinations=["A00", "A01"],
+        quota={"value": 150, "unit": "students"},
+        evidence=[
+            Evidence(
+                source_url="mock://vnu/proposal-pdf",
+                school_name="Dai hoc Cong nghe - DHQGHN",
+                admission_year=2026,
+                field_name="quota",
+                normalized_value={"value": 150, "unit": "students"},
+                trust_level=3,
+                confidence_score=0.94,
+            )
+        ],
+        metadata={"mock_conflict": True, "mock_dataset": "advisory_conflict_v1"},
+    ),
+]
+```
+
+A third candidate may be included to exercise corroboration, for example another source reporting `150` with trust level 2. Keep the default fixture deterministic and small; tests should not depend on random quota values.
+
+**Filter behavior**
+
+The mock builder respects only the filters needed to keep local demos intuitive:
+
+- `admission_year`: use the requested year when present, defaulting to the configured admission year.
+- `preferred_schools`: if present and it excludes the mock `school_id`, return `[]`.
+- `preferred_majors`: if present and it excludes both the mock `program_id` and a simple name match, return `[]`.
+- `subject_combination`: leave filtering to `retrieval_agent`, matching the production path.
+
+This keeps the mock path close enough to production retrieval for demos without reimplementing SQL semantics.
+
+**Evidence enrichment in mock mode**
+
+The Evidence agent must not assume every `EvidenceOption.source_url` can be joined back to `canonical_admission_records`. When the source URL starts with `mock://` or the candidate metadata marks it as a mock conflict, enrichment should use the provenance already present on the `CandidateProgram.evidence` object and skip DB joins. Missing `fetched_at` remains acceptable; Comparison falls through to trust and confidence axes.
+
+**Failure and safety behavior**
+
+- If mock mode is enabled, retrieval failures from Postgres cannot occur because retrieval does not open a cursor.
+- If mock mode returns `[]` because filters exclude the mock fixture, the graph behaves like a normal no-result retrieval.
+- Production deployments should leave the env var unset. No database query, schema migration, or ingestion behavior changes because of the mock module itself.
 
 ### Required schema change
 
@@ -245,7 +368,8 @@ This is the only hard gate between dataset and agent work. If the dataset doesn'
 
 - **Evaluation dataset (`canonical_admission_records` in Postgres):** only real ingested rows. No exceptions, no flagged "illustrative" rows mixed in.
 - **Test fixtures (`tests/services/conflict/fixtures/`):** synthetic is fine and expected. They're clearly separated from the evaluation dataset and used by unit/integration tests.
-- **Demo-only examples (if needed for a presentation):** allowed but must live in a clearly separate surface — a separate fixture file the demo script loads, or a tagged row with an explicit `dataset_kind = 'demo_only'` flag never queried by the evaluation path.
+- **Runtime mock retrieval (`ADVISORY_MOCK_CONFLICTS=1`):** synthetic is allowed because it bypasses Postgres entirely and returns in-memory `CandidateProgram` objects. It is acceptable for local development, automated graph tests, and fallback demos that prove the conflict-aware control flow. It is not acceptable as the real-data phase-completion gate.
+- **Demo-only examples (if needed for a presentation):** prefer the runtime mock retrieval path over inserting tagged demo rows. If a separate fixture file is still needed, it must stay outside `canonical_admission_records` and must never be queried by the evaluation path.
 - **If real curation produces fewer than the target organic conflicts:** the phase does not ship reduced. Re-curate (add a third school, swap source pairs) or extend the timeline. Failing loudly is the bail-out.
 
 ### Risks and bail-outs
@@ -260,6 +384,7 @@ This is the only hard gate between dataset and agent work. If the dataset doesn'
 ### Pre-conditions on entry to the conflict node
 
 - `state.retrieved_programs` is populated by `retrieval_agent`. Multiple `CandidateProgram` rows may share the same `(school_id, admission_year, program_id_or_name, admission_method)` tuple when sources disagree.
+- When `ADVISORY_MOCK_CONFLICTS=1`, those rows may be in-memory synthetic candidates from `services/mock_retrieval.py`; the conflict node should treat them exactly like DB-backed candidates except that provenance enrichment must not require SQL joins.
 - `state.conflict_records` is empty.
 - `state.resolution_outcomes` is empty.
 
@@ -376,6 +501,13 @@ This is the part of the design where the recommendation itself visibly reflects 
 
 ### Unit tests — synthetic fixtures, fast, isolated
 
+- `tests/services/test_mock_retrieval.py`
+  - Env disabled -> `fetch_candidates` follows the DB path; mock builder is not called.
+  - Env enabled -> `fetch_candidates` returns 2-3 candidates without calling `get_cursor`.
+  - Returned candidates share `(school_id, admission_year, program_id, admission_method)` and contain at least 2 distinct quota values.
+  - `preferred_schools` excluding the mock school returns `[]`.
+  - `preferred_majors` excluding the mock program returns `[]`.
+  - Evidence has distinct source URLs, trust levels, and confidence scores.
 - `tests/services/conflict/test_detection.py`
   - Single group with 2 candidates and distinct quotas → 1 `ConflictRecord` with 2 options.
   - Single group with 3 candidates where 2 agree on value A and 1 reports B → 1 record, 3 options.
@@ -420,6 +552,7 @@ This is the part of the design where the recommendation itself visibly reflects 
 - `tests/e2e/test_advisory_flow.py` (extend existing)
   - Fixture where seeded `retrieved_programs` contains 2 rows for the same conflict key with different quotas. Run the full graph. Assert: `final_answer` contains the verification section AND the recommendation reflects the resolved value AND `policy_decision.warnings` is empty (deterministic resolution).
   - Parallel fixture where the comparison is forced indecisive (equal trust levels and recency). Stub the LLM tiebreaker to return `confidence="medium"`. Assert: `final_answer` contains the unresolved verification section AND the candidate's reasoning includes the data-uncertainty caution AND `state.conflicts` is non-empty.
+  - Env-driven fixture sets `ADVISORY_MOCK_CONFLICTS=1`, runs the normal graph entry point without seeding `state.retrieved_programs`, and asserts `final_answer` contains `## Xác minh dữ liệu`. Mock the DB cursor to raise if called, proving retrieval stayed in memory.
 
 ### End-to-end test with real ingested data — load-bearing for the thesis claim
 
@@ -434,6 +567,7 @@ This is the part of the design where the recommendation itself visibly reflects 
 
 - `tests/e2e/test_chat_web_flow.py` (extend existing)
   - Reuse the deterministic-stub fixture path. Seed a session with a conflict-bearing profile; run through the chat API; assert the polled snapshot eventually contains an `assistant_result` message with the verification section text.
+  - Add a mock-retrieval variant that sets `ADVISORY_MOCK_CONFLICTS=1`, asks for the mock program/school, and asserts the chat result contains `Xác minh dữ liệu` without requiring `DATABASE_URL` or seeded Postgres data.
 
 ### What's intentionally not tested
 
@@ -453,36 +587,41 @@ The phase ships only when:
 ### Test running posture
 
 - Default `pytest` (no marker): runs everything except `requires_real_dataset`. Stays fast, no DB seed required beyond what already exists.
+- `ADVISORY_MOCK_CONFLICTS=1 pytest tests/e2e/test_advisory_flow.py -k mock`: runs the stable conflict-aware flow against in-memory retrieval candidates. This is the fast local demo/test path and should not require Postgres.
 - `pytest -m requires_real_dataset`: runs the real-data e2e. Requires `tests/e2e/fixtures/real_dataset_dump.sql` and a reachable Postgres instance.
 - The CI workflow `.github/workflows/ai-code-review.yml` is unchanged. The real-dataset test is a demo-prep / phase-completion gate, not a CI gate.
 - `QUICKSTART.md` must document `pytest -m requires_real_dataset` as a phase-completion requirement.
 
 ## Rollout Order
 
-Four sequential slices, each independently mergeable. Dataset curation can start in parallel with slice 2 since it has no code dependency on prior slices.
+Five sequential slices, each independently mergeable. The mock-retrieval slice comes first because it unblocks stable graph tests and demos while real dataset curation continues. Dataset curation can start in parallel with slice 3 since it has no code dependency on prior slices.
 
-**Slice 1 — Schema fix + dataset curation (real data).** Two work items, the first of which is a hard prerequisite for the second:
+**Slice 1 — Mock retrieval mode.** Add `services/mock_retrieval.py`, the `ADVISORY_MOCK_CONFLICTS` config helper, the early guard in `services/retrieval_service.py:fetch_candidates`, `.env.example` documentation, and focused tests proving the mock path returns conflicting candidates without touching DB. This slice does not add the conflict node yet; with the current legacy retrieval flow it should already make `state.conflicts` contain a quota conflict, which is useful as a smoke test.
+*Gate:* with `ADVISORY_MOCK_CONFLICTS=1`, `fetch_candidates` returns 2-3 synthetic candidates sharing one conflict key with distinct quota values, and the DB cursor is never called.
+
+**Slice 2 — Schema fix + dataset curation (real data).** Two work items, the first of which is a hard prerequisite for the second:
 
 1. Add `db/migrations/010_canonical_records_per_source.sql`: drop the existing `UNIQUE(school_id, admission_year, program_id, admission_method)` constraint and add `UNIQUE(school_id, admission_year, program_id, admission_method, source_url)`. Update `ingestion/storage/db_writer.py:save_canonical_records` to use the new conflict target. Without this change, the writer silently de-duplicates the conflict signal and the rest of the phase has nothing to operate on.
 2. Pre-flight check on VNU-UET sources, source-registry entries, parser tuning if needed, ingestion of HUST + VNU-UET corpus, acceptance-criteria SQL check. Produces `tests/e2e/fixtures/real_dataset_dump.sql` from a one-time export.
 
 *Gate:* at least 3 program-method tuples with distinct quota values across 2 distinct rows in `canonical_admission_records` (only possible after the migration lands).
 
-**Slice 2 — Conflict data model + detection.** `services/conflict/models.py`, `services/conflict/detection.py`, the new fields on `AgentState` and `CandidateProgram`. Replaces the string-emission path in `retrieval_service.detect_conflicts`. Unit tests for detection only. **Does not yet wire into the graph** — `retrieval_agent` stops calling `detect_conflicts`; the conflict node doesn't exist yet, so conflicts simply aren't surfaced in this slice. Safe to merge because the policy agent's ambiguity path tolerates an empty `state.conflicts`.
+**Slice 3 — Conflict data model + detection.** `services/conflict/models.py`, `services/conflict/detection.py`, the new fields on `AgentState` and `CandidateProgram`. Replaces the string-emission path in `retrieval_service.detect_conflicts`. Unit tests for detection only. **Does not yet wire into the graph** — `retrieval_agent` stops calling `detect_conflicts`; the conflict node doesn't exist yet, so conflicts simply aren't surfaced in this slice. Safe to merge because the policy agent's ambiguity path tolerates an empty `state.conflicts`.
 
-**Slice 3 — Evidence + Comparison + Resolution agents.** `services/conflict/{evidence_agent,comparison_agent,resolution_agent,source_labels}.py`, the restructured prompt in `services/conflict_resolution_service.py`, and the rewritten `agents/conflict_agent.py` as the conflict-node orchestrator. Adds the `conflict` node to `graph.py` between `retrieve` and `reason`. Extends `reasoning_agent` and `explanation_agent` for `data_uncertain_fields` and the verification section. Full unit coverage for new agents; extends existing agent integration tests.
-*Gate:* graph integration test in `tests/e2e/test_advisory_flow.py` passes with both resolved and unresolved fixtures.
+**Slice 4 — Evidence + Comparison + Resolution agents.** `services/conflict/{evidence_agent,comparison_agent,resolution_agent,source_labels}.py`, the restructured prompt in `services/conflict_resolution_service.py`, and the rewritten `agents/conflict_agent.py` as the conflict-node orchestrator. Adds the `conflict` node to `graph.py` between `retrieve` and `reason`. Extends `reasoning_agent` and `explanation_agent` for `data_uncertain_fields` and the verification section. Full unit coverage for new agents; extends existing agent integration tests.
+*Gate:* graph integration test in `tests/e2e/test_advisory_flow.py` passes with both resolved and unresolved fixtures, plus the env-driven mock retrieval fixture asserts `final_answer` contains `## Xác minh dữ liệu`.
 
-**Slice 4 — Real-data end-to-end + chat surface verification + docs.** New `tests/e2e/test_real_conflict_resolution.py` with `requires_real_dataset` marker. Extends `tests/e2e/test_chat_web_flow.py` for verification-section presence. Adds the demo-prep section to `QUICKSTART.md` documenting `pytest -m requires_real_dataset` as a phase-completion gate.
-*Gate:* real-dataset test passes against the curated dump from slice 1, and a manual chat walkthrough produces a coherent verification section for at least one resolved and one unresolved program.
+**Slice 5 — Real-data end-to-end + chat surface verification + docs.** New `tests/e2e/test_real_conflict_resolution.py` with `requires_real_dataset` marker. Extends `tests/e2e/test_chat_web_flow.py` for verification-section presence. Adds the demo-prep section to `QUICKSTART.md` documenting both `ADVISORY_MOCK_CONFLICTS=1` for local mock demos and `pytest -m requires_real_dataset` as a phase-completion gate.
+*Gate:* real-dataset test passes against the curated dump from slice 2, and a manual chat walkthrough produces a coherent verification section for at least one resolved and one unresolved program.
 
-Total: 2-3 weeks if dataset curation goes smoothly. If slice 1's acceptance check fails on VNU-UET and a third school becomes necessary, the timeline slips — by the dataset policy, that slip is preferred over shipping synthetic data.
+Total: 2-3 weeks if dataset curation goes smoothly. Slice 1 should be small and can land quickly; it reduces schedule risk for flow development but does not reduce the real-data acceptance bar. If slice 2's acceptance check fails on VNU-UET and a third school becomes necessary, the timeline slips — by the dataset policy, that slip is preferred over shipping synthetic data as evaluation evidence.
 
 ## Tradeoffs
 
 ### Benefits
 
 - Operationalizes the project's central architectural claim on real data — the thesis story moves from "we designed a multi-agent conflict resolution architecture" to "we can show it resolving a real cross-source quota conflict between UET's program page and ĐHQGHN's admission proposal."
+- Adds a stable mock retrieval mode that lets developers and reviewers exercise the full conflict-aware graph immediately, without waiting for DB migrations, ingestion reruns, or a fragile live dataset state.
 - Deterministic-first design keeps the LLM gateway out of the load-bearing decision path. The defense answer to "how does it decide?" is a readable rule set.
 - Uncertainty surfaces as a visible product property: contested data downgrades the recommendation band and tells the student to verify directly with the school.
 - Reuses every existing layer — graph, inference gateway, telemetry, chat surface, ingestion pipeline. Net new code is concentrated in one new package (`services/conflict/`) plus thin extensions to two existing agents.
@@ -490,7 +629,8 @@ Total: 2-3 weeks if dataset curation goes smoothly. If slice 1's acceptance chec
 
 ### Costs
 
-- Slice 1 carries most of the schedule risk. Real-world ingestion of a school's heterogeneous sources can stall on parser quality, program-name alignment, or source availability. The bail-outs (HTML-only fallback, third-school addition, scope cut to 2 programs) preserve the "no synthetic in evaluation dataset" policy but at the cost of timeline.
+- Slice 2 carries most of the schedule risk. Real-world ingestion of a school's heterogeneous sources can stall on parser quality, program-name alignment, or source availability. The bail-outs (HTML-only fallback, third-school addition, scope cut to 2 programs) preserve the "no synthetic in evaluation dataset" policy but at the cost of timeline.
+- Mock mode creates a second retrieval source branch. Keep it deliberately tiny and env-gated; any attempt to make it a general fixture framework should be rejected in this phase.
 - The corroboration axis in the Comparison agent introduces a non-obvious rule (mid-trust agreement can outrank a single high-trust source). This needs to be defended in the thesis writeup; the rule is justifiable in the Vietnamese admission context where proposal PDFs sometimes lag behind website updates, but it's not the only reasonable design choice. Alternative (drop corroboration, single-axis trust only) is a one-line code change if needed.
 - `state.conflicts: List[str]` survives as a legacy compatibility shim. A future phase should retire it and have `policy_agent` read `state.resolution_outcomes` directly. This phase deliberately doesn't take on that refactor.
 - LLM tiebreaker is conservative (only `confidence="high"` flips to resolved). The system will declare "unresolved" more often than a less-conservative threshold would. Right call for the defense story; trades demonstrability for honesty.
@@ -504,14 +644,16 @@ Total: 2-3 weeks if dataset curation goes smoothly. If slice 1's acceptance chec
 | ĐHQGHN proposal PDF parser produces poor table extraction | Switch to HTML-only sources for VNU-UET. |
 | Program-name alignment between UET site and ĐHQGHN proposal is too ambiguous | Pre-flight explicitly checks this. Swap school before parser work begins. |
 | `requires_real_dataset` test passes locally but fails on demo-day Postgres | Phase-completion gate documented in `QUICKSTART.md`; demo-day environment must run it during prep. |
+| Mock mode accidentally enabled in production | Default disabled, documented as local/test/demo only, and easy startup/log check: when enabled, retrieval should log or expose `metadata["mock_conflict"] = True` on returned candidates. Deployment env must not set `ADVISORY_MOCK_CONFLICTS`. |
+| Mock fixture diverges from production `CandidateProgram` shape | Build mock candidates with the same Pydantic model and add tests asserting conflict-key grouping, evidence provenance, and quota dict shape. |
 | LLM tiebreaker prompt produces inconsistent JSON | Conservative parser: invalid `chosen_source_url` or non-`high` confidence → `unresolved`. Failure is silent and safe. |
 | Corroboration rule rejected in thesis review | Rule is documented with reasoning in the design doc and the thesis writeup. Drop-corroboration alternative is a one-line code change. |
 
 ## Decision Summary
 
 - **Phase name:** Conflict-Aware Advisory V1
-- **Scope:** Evidence/Comparison/Resolution multi-agent layer for one conflict type (quota) across 2 real Hanoi schools (HUST + VNU-UET), wired into the existing advisory graph with deterministic-first resolution and conservative LLM tiebreaker. Resolution rationale and uncertainty disclosure surface in the chat output via Vietnamese deterministic templates. Real-data verification gated by opt-in pytest marker.
-- **Timeline:** 2-3 weeks, contingent on slice 1 hitting the acceptance criteria on real data. Slip rather than synthesize.
+- **Scope:** Evidence/Comparison/Resolution multi-agent layer for one conflict type (quota) across 2 real Hanoi schools (HUST + VNU-UET), wired into the existing advisory graph with deterministic-first resolution and conservative LLM tiebreaker. Resolution rationale and uncertainty disclosure surface in the chat output via Vietnamese deterministic templates. An env-gated mock retrieval mode (`ADVISORY_MOCK_CONFLICTS=1`) provides stable in-memory conflict candidates for local tests and demos without touching DB. Real-data verification remains gated by opt-in pytest marker.
+- **Timeline:** 2-3 weeks, contingent on slice 2 hitting the acceptance criteria on real data. Mock retrieval lands first to unblock flow work; real-data acceptance still cannot be replaced by synthetic data.
 - **Reliability posture:** deterministic logic first, LLM only as tiebreaker, conservative high-confidence threshold to flip uncertainty to resolution. Unresolved cases visibly downgrade recommendation bands and tell students to verify with the school directly.
 - **Explicitly deferred:** freshness scoring, other conflict types, ingestion scale-up, operator console, structured recommendation UI, retirement of the legacy `state.conflicts` shim.
 
