@@ -21,7 +21,7 @@ class RunDispatcher:
     def _execute(self, session_token: str, run_id: int, latest_user_message: str, profile_state):
         self.repository.mark_run_running(run_id)
         try:
-            result = self.runner(profile_state, latest_user_message)
+            result = self.runner(profile_state, latest_user_message, trace_run_id=run_id)
             final_answer = result.get("final_answer") or result.get("advisory") or ""
             self.repository.complete_run(run_id, result, final_answer)
             self.repository.append_message(session_token, "assistant", final_answer, "assistant_result")
