@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block body %}
-<main class="chat-shell">
+<main class="chat-shell" data-debug-ui="{{ 'true' if debug_ui_enabled else 'false' }}">
   <section class="chat-panel">
     <header class="chat-header">
       <h1>Student Advisory Chat</h1>
@@ -33,6 +33,22 @@
       <h2>Khuyến nghị mới nhất</h2>
       <div id="recommendation-panel"></div>
     </section>
+  </aside>
+
+  <aside class="trace-panel" id="trace-panel" hidden>
+    <h2>Trace</h2>
+    <ol class="trace-cards" id="trace-cards">
+      {% for stage in ["profile", "retrieve", "conflict", "reason", "policy", "explain"] %}
+        <li class="trace-card trace-card--pending" data-stage="{{ stage }}" data-sequence="{{ loop.index0 }}">
+          <button type="button" class="trace-card__header" aria-expanded="false">
+            <span class="trace-card__icon" aria-hidden="true">○</span>
+            <span class="trace-card__name">{{ stage }}</span>
+            <span class="trace-card__meta">pending</span>
+          </button>
+          <pre class="trace-card__body" hidden></pre>
+        </li>
+      {% endfor %}
+    </ol>
   </aside>
 </main>
 {% endblock %}

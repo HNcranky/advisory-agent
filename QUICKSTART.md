@@ -104,6 +104,17 @@ uvicorn web.app:build_app --factory --reload --host 127.0.0.1 --port 8000
 
 Open <http://127.0.0.1:8000/> in a browser. The first visit creates an anonymous session; the session token is persisted in `localStorage` so refreshing rejoins the same conversation.
 
+### Optional: enable the trace viewer (dev-only)
+
+Set the env flag before starting uvicorn:
+
+```powershell
+$env:ADVISORY_DEBUG_UI="1"
+uvicorn web.app:build_app --factory --reload --port 8000
+```
+
+Then open `http://127.0.0.1:8000/?debug=1`. The right-hand "Trace" panel shows one card per agent stage; click a card to inspect its output JSON. Without the env flag, the panel is hidden. `?debug=1` alone also enables it client-side without restarting the server.
+
 ## 6. Demo flow
 
 1. Send a freeform message describing a student's situation.
