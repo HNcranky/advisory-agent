@@ -50,41 +50,41 @@ def reason_candidates(
                 or profile.subject_combination in candidate.subject_combinations
             ):
                 score += 0.40
-                reasons.append("Subject combination appears compatible.")
+                reasons.append("Tổ hợp xét tuyển phù hợp.")
             else:
                 eligible = False
-                risks.append("Subject combination does not match listed combinations.")
+                risks.append("Tổ hợp xét tuyển không khớp với các tổ hợp được công bố.")
         else:
             eligible = None
-            risks.append("Missing subject combination in profile.")
+            risks.append("Hồ sơ còn thiếu tổ hợp xét tuyển.")
 
         if _major_matches(profile, candidate):
             score += 0.35
-            reasons.append("Preferred major matches candidate program.")
+            reasons.append("Ngành ưu tiên khớp với chương trình.")
 
         if _school_matches(profile, candidate):
             score += 0.15
-            reasons.append("Preferred school matches candidate school.")
+            reasons.append("Trường ưu tiên khớp với nguyện vọng.")
 
         if profile.total_score is not None:
             if profile.total_score >= 26:
                 score += 0.10
-                reasons.append("Profile score is in a strong range.")
+                reasons.append("Điểm dự kiến đang ở mức cạnh tranh tốt.")
             elif profile.total_score >= 24:
                 score += 0.05
-                reasons.append("Profile score is in a moderate range.")
+                reasons.append("Điểm dự kiến đang ở mức có thể cân nhắc.")
             else:
-                cautions.append("Profile score may be below highly competitive ranges.")
+                cautions.append("Điểm dự kiến có thể thấp hơn mức cạnh tranh của một số chương trình.")
         else:
-            cautions.append("Missing score; cannot estimate competitiveness reliably.")
+            cautions.append("Hồ sơ còn thiếu điểm nên chưa thể ước lượng mức cạnh tranh.")
 
         has_missing_critical = bool(profile.missing_slots)
         band = _score_to_band(score, has_missing_critical)
         if "quota" in candidate.data_uncertain_fields:
             if band == "safe":
                 band = "match"
-            cautions.append("So lieu han ngach chua duoc xac nhan giua cac nguon.")
-        summary = f"{candidate.program_name} at {candidate.school_name}: {band} fit."
+            cautions.append("Dữ liệu hạn ngạch chưa được xác minh giữa các nguồn.")
+        summary = f"{candidate.program_name} tại {candidate.school_name}: mức phù hợp {band}."
 
         checks.append(
             EligibilityCheck(

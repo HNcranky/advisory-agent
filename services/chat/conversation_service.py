@@ -30,7 +30,7 @@ class ConversationService:
                 profile_state=merged,
             )
         
-        ready_message = "Cam on ban. Minh da co du thong tin va se bat dau phan tich."
+        ready_message = "Cảm ơn bạn. Mình đã có đủ thông tin và sẽ bắt đầu phân tích."
         self.repository.update_profile_state(session_token, merged, "ready")
         self.repository.append_message(session_token, "assistant", ready_message, "assistant_ready")
         return ConversationTurnResult(

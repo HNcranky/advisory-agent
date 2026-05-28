@@ -41,7 +41,7 @@ def test_start_session_creates_welcome_message():
 
     assert snapshot.session["status"] == "collecting_profile"
     assert snapshot.messages[0].role == "assistant"
-    assert "cho minh biet diem" in snapshot.messages[0].content.lower()
+    assert "cho mình biết điểm" in snapshot.messages[0].content.lower()
 
 def test_get_session_snapshot_returns_existing_messages():
     repository = FakeRepository()

@@ -15,7 +15,7 @@ class FakeCursor:
             None,
         )
         self._rows = [
-            (1, "session-123", "assistant", "assistant_welcome", "Chao ban"),
+            (1, "session-123", "assistant", "assistant_welcome", "Chào bạn"),
             (2, "session-123", "user", "user_message", "Em muon hoc CNTT"),
         ]
 

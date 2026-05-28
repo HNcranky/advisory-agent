@@ -34,9 +34,9 @@ def merge_profile_state(current: ChatProfileState, extracted: StudentProfile, ra
 
 def next_follow_up_question(state: ChatProfileState):
     prompts = {
-        "admission_year": "Ban dang xet tuyen cho nam nao?",
-        "total_score": "Tong diem hoac muc diem uoc tinh cua ban la bao nhieu?",
-        "preferred_majors": "Ban quan tam nhat den nganh nao?",
-        "location_preference": "Ban muon hoc o khu vuv hay thanh pho nao?",
+        "admission_year": "Bạn đang xét tuyển cho năm nào?",
+        "total_score": "Tổng điểm hoặc mức điểm ước tính của bạn là bao nhiêu?",
+        "preferred_majors": "Bạn quan tâm nhất đến ngành nào?",
+        "location_preference": "Bạn muốn học ở khu vực hoặc thành phố nào?",
     }
     return prompts.get(state.missing_slots[0]) if state.missing_slots else None

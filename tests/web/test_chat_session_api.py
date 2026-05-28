@@ -14,7 +14,7 @@ def test_post_message_returns_follow_up_payload(monkeypatch):
             assert content == "Em muon hoc CNTT"
             return ConversationTurnResult(
                 session_status="collecting_profile",
-                assistant_message="Tong diem hoac muc diem uoc tinh cua ban la bao nhieu?",
+                assistant_message="Tổng điểm hoặc mức điểm ước tính của bạn là bao nhiêu?",
                 should_start_run=False,
                 profile_state=ChatProfileState(
                     admission_year=2026,
@@ -52,7 +52,7 @@ def test_post_message_returns_ready_payload(monkeypatch):
         def handle_user_message(self, session_token, content):
             return ConversationTurnResult(
                 session_status="ready",
-                assistant_message="Cam on ban. Minh da co du thong tin va se bat dau phan tich.",
+                assistant_message="Cảm ơn bạn. Mình đã có đủ thông tin và sẽ bắt đầu phân tích.",
                 should_start_run=True,
                 profile_state=ChatProfileState(
                     admission_year=2026,
@@ -146,7 +146,7 @@ def test_create_session_endpoint_returns_snapshot(monkeypatch):
                         session_token="session-123",
                         role="assistant",
                         kind="assistant_welcome",
-                        content="Chao ban",
+                        content="Chào bạn",
                     )
                 ],
             )

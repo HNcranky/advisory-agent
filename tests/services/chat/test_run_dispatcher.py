@@ -57,7 +57,7 @@ def test_dispatcher_posts_mock_conflict_verification_result_message(monkeypatch)
     dispatcher = RunDispatcher(
         repository=repo,
         runner=lambda profile_state, latest_user_message: {
-            "final_answer": "Goi y CNTT\n\n## Xac minh du lieu\n- Han ngach co mau thuan."
+            "final_answer": "Gợi ý CNTT\n\nXác minh dữ liệu\n- Hạn ngạch có mâu thuẫn."
         },
         executor=InlineExecutor(),
     )
@@ -74,7 +74,7 @@ def test_dispatcher_posts_mock_conflict_verification_result_message(monkeypatch)
         ),
     )
 
-    assert repo.completed[2].count("Xac minh du lieu") == 1
+    assert repo.completed[2].count("Xác minh dữ liệu") == 1
     assert repo.messages[-1] == (
         "session-456",
         "assistant",

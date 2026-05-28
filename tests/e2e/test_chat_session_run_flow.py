@@ -20,7 +20,7 @@ def test_student_can_complete_follow_up_and_receive_final_result(monkeypatch):
             session_token="session-123",
             role="assistant",
             kind="assistant_welcome",
-            content="Chao ban",
+            content="Chào bạn",
         )
     ]
 
@@ -68,12 +68,12 @@ def test_student_can_complete_follow_up_and_receive_final_result(monkeypatch):
                         session_token=session_token,
                         role="assistant",
                         kind="assistant_follow_up",
-                        content="Tong diem hoac muc diem uoc tinh cua ban la bao nhieu?",
+                        content="Tổng điểm hoặc mức điểm ước tính của bạn là bao nhiêu?",
                     )
                 )
                 return ConversationTurnResult(
                     session_status="collecting_profile",
-                    assistant_message="Tong diem hoac muc diem uoc tinh cua ban la bao nhieu?",
+                    assistant_message="Tổng điểm hoặc mức điểm ước tính của bạn là bao nhiêu?",
                     should_start_run=False,
                     profile_state=ChatProfileState(
                         admission_year=2026,
@@ -98,12 +98,12 @@ def test_student_can_complete_follow_up_and_receive_final_result(monkeypatch):
                     session_token=session_token,
                     role="assistant",
                     kind="assistant_ready",
-                    content="Cam on ban. Minh da co du thong tin va se bat dau phan tich.",
+                    content="Cảm ơn bạn. Mình đã có đủ thông tin và sẽ bắt đầu phân tích.",
                 )
             )
             return ConversationTurnResult(
                 session_status="ready",
-                assistant_message="Cam on ban. Minh da co du thong tin va se bat dau phan tich.",
+                assistant_message="Cảm ơn bạn. Mình đã có đủ thông tin và sẽ bắt đầu phân tích.",
                 should_start_run=True,
                 profile_state=ready_state,
             )

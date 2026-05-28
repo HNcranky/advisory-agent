@@ -54,10 +54,11 @@ def test_explanation_agent_builds_final_answer_with_sources():
     output = explanation_agent(state)
 
     assert output.final_answer is not None
-    assert "Goi y chuong trinh phu hop:" in output.final_answer
-    assert "Nguon tham chieu:" in output.final_answer
+    assert "Gợi ý chương trình phù hợp" in output.final_answer
+    assert "Nguồn tham chiếu" in output.final_answer
     assert "https://example.com/hust" in output.final_answer
-    assert "Canh bao:" in output.final_answer
+    assert "Cảnh báo" in output.final_answer
+    assert "Lý do:" in output.final_answer
 
 
 def test_explanation_agent_adds_follow_up_prompt():
@@ -67,7 +68,7 @@ def test_explanation_agent_adds_follow_up_prompt():
 
     output = explanation_agent(state)
 
-    assert "Thong tin can bo sung:" in output.final_answer
+    assert "Thông tin cần bổ sung:" in output.final_answer
 
 
 def test_explanation_includes_data_verification_section_for_resolved_outcome():
@@ -97,10 +98,10 @@ def test_explanation_includes_data_verification_section_for_resolved_outcome():
 
     output = explanation_agent(state)
 
-    assert "## Xac minh du lieu" in output.final_answer
+    assert "Xác minh dữ liệu" in output.final_answer
     assert "Cong nghe thong tin" in output.final_answer
     assert "150" in output.final_answer
-    assert "Nguon mock: VNU proposal PDF" in output.final_answer
+    assert "Nguồn mock: VNU proposal PDF" in output.final_answer
 
 
 def test_explanation_deduplicates_same_program_recommendations_and_keeps_all_sources():
@@ -170,3 +171,57 @@ def test_explanation_deduplicates_same_program_recommendations_and_keeps_all_sou
     assert output.final_answer.count("Cong nghe thong tin - Dai hoc Cong nghe - DHQGHN") == 1
     assert "mock://uet/program-page" in output.final_answer
     assert "mock://vnu/proposal-pdf" in output.final_answer
+
+
+def test_explanation_uses_vietnamese_accents_and_readable_sections():
+    state = AgentState(user_query="Tu van")
+    state.student_profile = StudentProfile(
+        total_score=26.5,
+        subject_combination="A00",
+        preferred_majors=["cntt"],
+        preferred_schools=["vnu_uet"],
+    )
+    state.retrieved_programs = [
+        CandidateProgram(
+            candidate_id="vnu_uet:2026:cntt:thpt_score",
+            school_id="vnu_uet",
+            school_name="Đại học Công nghệ - ĐHQGHN",
+            admission_year=2026,
+            program_id="cntt",
+            program_name="Công nghệ thông tin",
+            admission_method="thpt_score",
+            subject_combinations=["A00"],
+            evidence=[
+                Evidence(
+                    source_url="mock://uet/program-page",
+                    school_name="Đại học Công nghệ - ĐHQGHN",
+                    admission_year=2026,
+                    field_name="quota",
+                )
+            ],
+        )
+    ]
+    state.ranked_recommendations = [
+        RankedRecommendation(
+            candidate_id="vnu_uet:2026:cntt:thpt_score",
+            band="safe",
+            score=1.0,
+            summary="fit",
+            reasons=[
+                "Tổ hợp xét tuyển phù hợp.",
+                "Ngành ưu tiên khớp với chương trình.",
+            ],
+            cautions=["Dữ liệu hạn ngạch chưa được xác minh giữa các nguồn."],
+        )
+    ]
+
+    output = explanation_agent(state)
+
+    assert "Hồ sơ hiện tại" in output.final_answer
+    assert "- Điểm: 26.5" in output.final_answer
+    assert "Gợi ý chương trình phù hợp" in output.final_answer
+    assert "Mức phù hợp: an toàn" in output.final_answer
+    assert "Lý do:" in output.final_answer
+    assert "- Tổ hợp xét tuyển phù hợp." in output.final_answer
+    assert "Lưu ý:" in output.final_answer
+    assert "Nguồn tham chiếu" in output.final_answer

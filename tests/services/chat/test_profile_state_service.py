@@ -42,4 +42,4 @@ def test_merge_profile_state_returns_first_missing_slot_prompt():
         "total_score",
         "location_preference",
     ]
-    assert next_follow_up_question(merged) == "Ban dang xet tuyen cho nam nao?"
+    assert next_follow_up_question(merged) == "Bạn đang xét tuyển cho năm nào?"
