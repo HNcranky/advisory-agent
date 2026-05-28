@@ -102,3 +102,106 @@ body {
   white-space: pre-wrap;
   line-height: 1.55;
 }
+
+/* ===== Trace panel ===== */
+
+.trace-panel {
+  background: #fafafa;
+  border-left: 1px solid #e5e7eb;
+  padding: 1rem 1.25rem;
+  min-width: 280px;
+  max-width: 360px;
+  overflow-y: auto;
+}
+
+.trace-panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: #374151;
+}
+
+.trace-cards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.trace-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.trace-card__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.trace-card__icon {
+  display: inline-block;
+  width: 1rem;
+  text-align: center;
+}
+
+.trace-card__name {
+  flex: 1;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.trace-card__meta {
+  font-size: 0.85em;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+
+.trace-card__body {
+  margin: 0;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8em;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Status variants */
+
+.trace-card--pending   { background: #f9fafb; }
+.trace-card--pending   .trace-card__icon { color: #9ca3af; }
+.trace-card--pending   .trace-card__meta { color: #9ca3af; }
+
+.trace-card--running   { background: #fffbeb; }
+.trace-card--running   .trace-card__icon {
+  color: #d97706;
+  display: inline-block;
+  animation: trace-spin 1s linear infinite;
+}
+
+.trace-card--completed { background: #f0fdf4; }
+.trace-card--completed .trace-card__icon { color: #16a34a; }
+.trace-card--completed .trace-card__meta { color: #166534; }
+
+.trace-card--failed    { background: #fef2f2; }
+.trace-card--failed    .trace-card__icon { color: #dc2626; }
+.trace-card--failed    .trace-card__meta { color: #b91c1c; }
+
+@keyframes trace-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

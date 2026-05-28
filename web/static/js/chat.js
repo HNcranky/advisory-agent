@@ -1,8 +1,114 @@
 const SESSION_KEY = "student-advisory-session-token";
 const POLL_INTERVAL_MS = 1200;
+const TRACE_POLL_INTERVAL_MS = 1000;
+const TRACE_STAGES = ["profile", "retrieve", "conflict", "reason", "policy", "explain"];
+let tracePollTimer = null;
+const expandedStages = new Set();
+
+function debugUiEnabled() {
+  const fromTemplate = document.querySelector(".chat-shell")?.dataset.debugUi === "true";
+  const fromUrl = new URLSearchParams(window.location.search).get("debug") === "1";
+  return fromTemplate || fromUrl;
+}
+
+function showTracePanel() {
+  const panel = document.getElementById("trace-panel");
+  if (panel) panel.hidden = false;
+}
+
+async function fetchTrace(sessionToken) {
+  const r = await fetch(`/api/sessions/${sessionToken}/trace`);
+  if (!r.ok) throw new Error("trace fetch failed");
+  return r.json();
+}
+
+function formatDuration(ms) {
+  if (ms == null) return "";
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function statusMeta(event) {
+  switch (event.status) {
+    case "completed": return formatDuration(event.duration_ms);
+    case "running":   return "running…";
+    case "failed":    return "failed";
+    default:          return "pending";
+  }
+}
+
+function statusIcon(status) {
+  switch (status) {
+    case "completed": return "●";
+    case "running":   return "⟳";
+    case "failed":    return "✕";
+    default:          return "○";
+  }
+}
+
+function renderTraceCards(events) {
+  const root = document.getElementById("trace-cards");
+  if (!root) return;
+  events.forEach((event) => {
+    const card = root.querySelector(`[data-stage="${event.stage}"]`);
+    if (!card) return;
+
+    card.classList.remove(
+      "trace-card--pending",
+      "trace-card--running",
+      "trace-card--completed",
+      "trace-card--failed",
+    );
+    card.classList.add(`trace-card--${event.status}`);
+
+    card.querySelector(".trace-card__icon").textContent = statusIcon(event.status);
+    card.querySelector(".trace-card__meta").textContent = statusMeta(event);
+
+    const body = card.querySelector(".trace-card__body");
+    if (event.status === "completed" && event.output_json) {
+      body.textContent = JSON.stringify(event.output_json, null, 2);
+    } else if (event.status === "failed") {
+      body.textContent = event.error_text || "(no error text)";
+    } else {
+      body.textContent = "";
+    }
+
+    // Restore expanded state
+    const isExpanded = expandedStages.has(event.stage);
+    body.hidden = !isExpanded;
+    card.querySelector(".trace-card__header").setAttribute("aria-expanded", String(isExpanded));
+  });
+}
 
 let pollTimer = null;
 let currentSessionToken = null;
+
+function stopTracePolling() {
+  if (tracePollTimer) {
+    window.clearTimeout(tracePollTimer);
+    tracePollTimer = null;
+  }
+}
+
+function startTracePolling(sessionToken) {
+  if (!debugUiEnabled()) return;
+  stopTracePolling();
+
+  const tick = async () => {
+    try {
+      const payload = await fetchTrace(sessionToken);
+      renderTraceCards(payload.events);
+      if (payload.run_status === "running" || payload.run_status === "queued") {
+        tracePollTimer = window.setTimeout(tick, TRACE_POLL_INTERVAL_MS);
+      }
+    } catch (e) {
+      // trace fetch failures must not interfere with the chat UX
+      tracePollTimer = window.setTimeout(tick, TRACE_POLL_INTERVAL_MS * 2);
+    }
+  };
+
+  tick();
+}
 
 function setStatus(message, tone = "info") {
   const node = document.getElementById("chat-status");
@@ -117,11 +223,20 @@ function schedulePolling(sessionToken) {
     if (snapshot.session.status === "completed") {
       setStatus("Đã có kết quả tư vấn.", "success");
       stopPolling();
+      // do one last trace fetch so the final stage flips to completed instantly
+      if (debugUiEnabled()) {
+        fetchTrace(sessionToken).then((p) => renderTraceCards(p.events)).catch(() => {});
+        stopTracePolling();
+      }
       return;
     }
     if (snapshot.session.status === "failed") {
       setStatus("Quá trình phân tích bị gián đoạn.", "error");
       stopPolling();
+      if (debugUiEnabled()) {
+        fetchTrace(sessionToken).then((p) => renderTraceCards(p.events)).catch(() => {});
+        stopTracePolling();
+      }
       return;
     }
     schedulePolling(sessionToken);
@@ -146,10 +261,35 @@ document.addEventListener("DOMContentLoaded", async () => {
   const input = document.getElementById("chat-input");
   const resetButton = document.getElementById("reset-session");
 
+  if (debugUiEnabled()) {
+    showTracePanel();
+  }
+
+  document.querySelectorAll("#trace-cards .trace-card").forEach((card) => {
+    const header = card.querySelector(".trace-card__header");
+    header.addEventListener("click", () => {
+      const stage = card.dataset.stage;
+      const body = card.querySelector(".trace-card__body");
+      const expanded = expandedStages.has(stage);
+      if (expanded) {
+        expandedStages.delete(stage);
+        body.hidden = true;
+        header.setAttribute("aria-expanded", "false");
+      } else {
+        expandedStages.add(stage);
+        body.hidden = false;
+        header.setAttribute("aria-expanded", "true");
+      }
+    });
+  });
+
   try {
     const bootstrap = await ensureSession();
     renderSnapshot(bootstrap);
     setStatus("Sẵn sàng tư vấn.", "info");
+    if (debugUiEnabled() && bootstrap.session && bootstrap.session.status === "running") {
+      startTracePolling(currentSessionToken);
+    }
   } catch (error) {
     setStatus("Không thể khởi tạo phiên chat.", "error");
     form.querySelector("button[type='submit']").disabled = true;
@@ -172,6 +312,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (result.should_start_run) {
         setStatus("Đang phân tích hồ sơ...", "pending");
         schedulePolling(currentSessionToken);
+        startTracePolling(currentSessionToken);
         return;
       }
 
@@ -183,6 +324,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   resetButton.addEventListener("click", async () => {
     stopPolling();
+    stopTracePolling();
     window.localStorage.removeItem(SESSION_KEY);
     const snapshot = await createSession();
     renderSnapshot(snapshot);
