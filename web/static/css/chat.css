@@ -1,62 +1,26 @@
+/* ============================================================
+   chat.css — slice 02 core (shell + header + grid + panel base)
+   All values consume tokens from tokens.css.
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
 body {
   margin: 0;
-  font-family: "Segoe UI", sans-serif;
-  background: #f6f8fb;
-  color: #1f2933;
+  height: 100%;
 }
 
-.chat-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-  gap: 24px;
-  min-height: 100vh;
-  padding: 32px;
-}
-
-.chat-panel,
-.summary-panel {
-  background: #ffffff;
-  border: 1px solid #d9e1ea;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 12px 28px rgba(31, 41, 51, 0.07);
-}
-
-.chat-header,
-.chat-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.chat-status {
-  min-height: 24px;
-  margin: 16px 0;
-  font-size: 14px;
-  color: #315f93;
-}
-
-.chat-transcript {
-  display: grid;
-  gap: 12px;
-  min-height: 280px;
-  margin-bottom: 16px;
-}
-
-.chat-form textarea {
-  width: 100%;
-  border: 1px solid #d5d9de;
-  border-radius: 8px;
-  padding: 14px;
-  resize: vertical;
-}
-
-.secondary-button {
-  border: 1px solid #c8cdd4;
-  background: #fff;
-  border-radius: 8px;
-  padding: 10px 14px;
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--text-1);
+  background: var(--surface-1);
 }
 
 .sr-only {
@@ -70,55 +34,325 @@ body {
   border: 0;
 }
 
-.chat-status[data-tone="pending"] {
-  color: #9a5b00;
+/* ----- App shell ----- */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--surface-1);
 }
 
-.chat-status[data-tone="success"] {
-  color: #24613c;
+/* ----- Header ----- */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  height: var(--header-h);
+  padding: 0 var(--space-4);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--surface-4);
 }
 
-.chat-status[data-tone="error"] {
-  color: #9f2d2d;
+.app-header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-.message {
-  padding: 14px 16px;
-  border-radius: 8px;
-  line-height: 1.5;
+.app-header__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--accent-1);
+  color: var(--accent-1-contrast);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.app-header__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ----- Generic buttons ----- */
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: var(--text-md);
+  line-height: 1;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.icon-button:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+
+.icon-button:focus-visible {
+  outline: 2px solid var(--accent-1);
+  outline-offset: 2px;
+}
+
+.primary-button {
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent-1);
+  color: var(--accent-1-contrast);
+  border: 0;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.primary-button:hover {
+  background: var(--accent-1-hover);
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  color: var(--text-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.secondary-button:hover {
+  background: var(--surface-3);
+}
+
+/* ----- Main grid ----- */
+
+.grid-3col {
+  display: grid;
+  grid-template-columns: var(--col-left) minmax(0, 1fr) var(--col-right);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ----- Panel base ----- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface-1);
+  overflow: hidden;
+}
+
+.panel--side {
+  background: var(--surface-2);
+}
+
+.panel--left {
+  border-right: 1px solid var(--surface-4);
+}
+
+.panel--right {
+  border-left: 1px solid var(--surface-4);
+}
+
+.panel--center {
+  background: var(--surface-1);
+}
+
+.panel__header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: inherit;
+  border-bottom: 1px solid var(--surface-4);
+}
+
+.panel__title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+  text-transform: uppercase;
+}
+
+.panel__body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ----- Profile cards ----- */
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.card__title {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--surface-4);
+}
+
+.card__body {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: var(--leading-base);
   white-space: pre-wrap;
+}
+
+.card__body p {
+  margin: 0 0 var(--space-2);
+}
+
+.card__body p:last-child {
+  margin-bottom: 0;
+}
+
+/* ----- Chat panel ----- */
+
+.chat-status {
+  min-height: 20px;
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+
+.chat-status[data-tone="pending"] { color: var(--warning); }
+.chat-status[data-tone="success"] { color: var(--positive); }
+.chat-status[data-tone="error"]   { color: var(--negative); }
+
+.chat-transcript {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  min-height: 0;
+}
+
+/* Legacy message bubble styles — slice 03 will replace. Kept functional. */
+.message {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  line-height: var(--leading-base);
+  white-space: pre-wrap;
+  max-width: var(--bubble-max);
 }
 
 .message--assistant {
-  background: #eef4fb;
+  background: var(--assistant-bg);
+  align-self: flex-start;
+  border-bottom-left-radius: var(--radius-sm);
 }
 
 .message--user {
-  background: #e7f5ef;
-  justify-self: end;
+  background: var(--user-bubble);
+  align-self: flex-end;
+  border-bottom-right-radius: var(--radius-sm);
 }
 
-#recommendation-panel {
-  white-space: pre-wrap;
-  line-height: 1.55;
+/* ----- Composer ----- */
+
+.composer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--surface-1);
+  border-top: 1px solid var(--surface-4);
 }
 
-/* ===== Trace panel ===== */
-
-.trace-panel {
-  background: #fafafa;
-  border-left: 1px solid #e5e7eb;
-  padding: 1rem 1.25rem;
-  min-width: 280px;
-  max-width: 360px;
-  overflow-y: auto;
+.composer__input {
+  width: 100%;
+  min-height: 64px;
+  padding: var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-base);
+  color: var(--text-1);
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  resize: vertical;
 }
 
-.trace-panel h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1rem;
-  color: #374151;
+.composer__input:focus-visible {
+  outline: 2px solid var(--accent-1);
+  outline-offset: 0;
+  border-color: transparent;
 }
+
+.composer__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.composer__hint {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+
+/* ----- Trace cards (re-skinned with tokens) ----- */
 
 .trace-cards {
   list-style: none;
@@ -126,13 +360,13 @@ body {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .trace-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #fff;
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
   overflow: hidden;
 }
 
@@ -140,13 +374,14 @@ body {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: transparent;
   border: 0;
   cursor: pointer;
   font: inherit;
   text-align: left;
+  color: var(--text-1);
 }
 
 .trace-card__icon {
@@ -159,49 +394,136 @@ body {
   flex: 1;
   font-weight: 600;
   text-transform: capitalize;
+  font-size: var(--text-sm);
 }
 
 .trace-card__meta {
-  font-size: 0.85em;
-  color: #6b7280;
+  font-size: var(--text-xs);
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
 .trace-card__body {
   margin: 0;
-  padding: 0.75rem;
-  background: #f9fafb;
-  border-top: 1px solid #e5e7eb;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.8em;
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border-top: 1px solid var(--surface-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   max-height: 320px;
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
+  color: var(--text-2);
 }
 
-/* Status variants */
+.trace-card--pending   .trace-card__icon { color: var(--text-3); }
+.trace-card--pending   .trace-card__meta { color: var(--text-3); }
 
-.trace-card--pending   { background: #f9fafb; }
-.trace-card--pending   .trace-card__icon { color: #9ca3af; }
-.trace-card--pending   .trace-card__meta { color: #9ca3af; }
-
-.trace-card--running   { background: #fffbeb; }
 .trace-card--running   .trace-card__icon {
-  color: #d97706;
+  color: var(--warning);
   display: inline-block;
   animation: trace-spin 1s linear infinite;
 }
 
-.trace-card--completed { background: #f0fdf4; }
-.trace-card--completed .trace-card__icon { color: #16a34a; }
-.trace-card--completed .trace-card__meta { color: #166534; }
+.trace-card--completed .trace-card__icon { color: var(--positive); }
+.trace-card--completed .trace-card__meta { color: var(--positive); }
 
-.trace-card--failed    { background: #fef2f2; }
-.trace-card--failed    .trace-card__icon { color: #dc2626; }
-.trace-card--failed    .trace-card__meta { color: #b91c1c; }
+.trace-card--failed    .trace-card__icon { color: var(--negative); }
+.trace-card--failed    .trace-card__meta { color: var(--negative); }
 
 @keyframes trace-spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+/* ----- Collapse modifiers ----- */
+
+.app-shell.left-collapsed  { --col-left: 32px;  }
+.app-shell.right-collapsed { --col-right: 32px; }
+
+.app-shell.left-collapsed  #profile-panel .panel__body,
+.app-shell.left-collapsed  #profile-panel .panel__title,
+.app-shell.right-collapsed #trace-panel  .panel__body,
+.app-shell.right-collapsed #trace-panel  .panel__title {
+  display: none;
+}
+
+.app-shell.left-collapsed  #profile-panel .panel__header,
+.app-shell.right-collapsed #trace-panel  .panel__header {
+  padding: var(--space-2) 0;
+  justify-content: center;
+  border-bottom: 0;
+}
+
+.panel__collapse {
+  flex: 0 0 auto;
+}
+
+/* Rotate the chevron when collapsed so the same glyph points outward. */
+.app-shell.left-collapsed  #collapse-left  span { transform: rotate(180deg); display: inline-block; }
+.app-shell.right-collapsed #collapse-right span { transform: rotate(180deg); display: inline-block; }
+
+/* ============================================================
+   Responsive layout
+   ============================================================ */
+
+/* Default desktop: drawer-trigger buttons hidden. */
+.app-header__drawer-trigger {
+  display: none;
+}
+
+/* Tablet — collapse trace panel by default. */
+@media (max-width: 1099px) {
+  .app-shell:not(.right-collapsed) {
+    --col-right: 32px;
+  }
+  .app-shell:not(.right-collapsed) #trace-panel .panel__body,
+  .app-shell:not(.right-collapsed) #trace-panel .panel__title {
+    display: none;
+  }
+  .app-shell:not(.right-collapsed) #trace-panel .panel__header {
+    padding: var(--space-2) 0;
+    justify-content: center;
+    border-bottom: 0;
+  }
+}
+
+/* Mobile — both side panels become drawers. */
+@media (max-width: 899px) {
+  .grid-3col {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel--side {
+    display: none;
+  }
+
+  .app-header__drawer-trigger {
+    display: inline-flex;
+  }
+
+  /* Drawer surfaces (shown when body has .drawer-open--*). */
+  body.drawer-open--left  #profile-panel,
+  body.drawer-open--right #trace-panel {
+    display: flex;
+    position: fixed;
+    top: var(--header-h);
+    bottom: 0;
+    width: min(85vw, 320px);
+    z-index: 30;
+    box-shadow: var(--shadow-md);
+    background: var(--surface-2);
+    transition: transform var(--transition-base);
+  }
+
+  body.drawer-open--left  #profile-panel { left: 0;  border-right: 1px solid var(--surface-4); }
+  body.drawer-open--right #trace-panel  { right: 0; border-left:  1px solid var(--surface-4); }
+
+  .drawer-backdrop {
+    position: fixed;
+    inset: var(--header-h) 0 0 0;
+    z-index: 25;
+    background: rgba(0, 0, 0, 0.4);
+  }
 }

@@ -1,3 +1,6 @@
+import { initTheme } from "./modules/theme.js";
+import { initCollapseHandles } from "./modules/layout.js";
+
 const SESSION_KEY = "student-advisory-session-token";
 const POLL_INTERVAL_MS = 1200;
 const TRACE_POLL_INTERVAL_MS = 1000;
@@ -260,6 +263,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const form = document.getElementById("chat-form");
   const input = document.getElementById("chat-input");
   const resetButton = document.getElementById("reset-session");
+
+  initCollapseHandles();
+  initTheme();
 
   if (debugUiEnabled()) {
     showTracePanel();
