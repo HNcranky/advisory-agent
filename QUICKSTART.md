@@ -2,11 +2,19 @@
 
 How to run the advisory-agent locally on Windows.
 
+## TL;DR — one-shot bootstrap
+
+```powershell
+.\setup.ps1                       # venv + deps + .env + docker db + migrations
+.\.venv\Scripts\Activate.ps1      # activate venv in your shell
+```
+
+The script is idempotent — safe to re-run. Steps 1–4 below break down what it does; jump to step 3 (load `.env`) and step 5 (run the app) once it finishes.
+
 ## Prerequisites
 
-- Python 3.12 with the project virtualenv already created at `.venv/`
+- Python 3.12 available on `PATH` (the `py -3.12` launcher is preferred)
 - Docker Desktop (or compatible runtime — `docker version` must exit 0)
-- `.env` at the repo root (copy `.env.example` if absent)
 
 ## 1. Bring up the Postgres database (Docker)
 
