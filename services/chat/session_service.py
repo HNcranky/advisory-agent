@@ -4,8 +4,8 @@ from services.chat.models import ChatSessionSnapshot
 from services.chat.repository import ChatSessionRepository
 
 WELCOME_MESSAGE = (
-    "Chao ban, minh co the tu van tuyen sinh. "
-    "Hay cho minh biet diem, nganh ban quan tam, va khu vuc ban muon hoc."
+    "Chào bạn, mình có thể tư vấn tuyển sinh. "
+    "Hãy cho mình biết điểm, ngành bạn quan tâm, và khu vực bạn muốn học."
 )
 
 class AnonymousSessionService:

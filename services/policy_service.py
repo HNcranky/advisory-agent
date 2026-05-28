@@ -34,17 +34,17 @@ def evaluate_policy_guardrails(
     if any(slot in CRITICAL_PROFILE_SLOTS for slot in profile.missing_slots):
         policy_flags.append("missing_critical_profile")
         warnings.append(
-            "Need more profile details to provide reliable advice: "
+            "Cần bổ sung thông tin hồ sơ để tư vấn đáng tin cậy hơn: "
             + ", ".join(sorted(set(profile.missing_slots)))
         )
 
     if conflicts:
         policy_flags.append("retrieval_conflicts_detected")
-        warnings.append("Conflicting records detected; verify official source before applying.")
+        warnings.append("Dữ liệu có mâu thuẫn giữa các nguồn; hãy kiểm tra nguồn chính thức trước khi đăng ký.")
 
     if not candidates:
         policy_flags.append("empty_retrieval")
-        warnings.append("No matching programs found in current canonical records.")
+        warnings.append("Không tìm thấy chương trình phù hợp trong dữ liệu chuẩn hóa hiện tại.")
 
     lower_query = user_query.lower()
     if "chac do" in lower_query or "chac chan do" in lower_query:
@@ -61,7 +61,7 @@ def evaluate_policy_guardrails(
             continue
         if not _has_valid_evidence(candidate):
             warnings.append(
-                f"Dropped recommendation {recommendation.candidate_id} due to missing evidence."
+                f"Đã loại gợi ý {recommendation.candidate_id} vì thiếu nguồn tham chiếu."
             )
             continue
         filtered_recommendations.append(recommendation)
@@ -69,7 +69,7 @@ def evaluate_policy_guardrails(
     if recommendations and not filtered_recommendations:
         policy_flags.append("all_recommendations_blocked")
         warnings.append(
-            "All recommendations were blocked because they lack supporting evidence."
+            "Tất cả gợi ý đã bị chặn vì thiếu nguồn tham chiếu."
         )
 
     decision = PolicyDecision(

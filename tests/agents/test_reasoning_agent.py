@@ -87,4 +87,4 @@ def test_uncertain_quota_candidate_is_not_safe_band():
     output = reasoning_agent(state)
 
     assert output.ranked_recommendations[0].band != "safe"
-    assert "So lieu han ngach chua duoc xac nhan giua cac nguon." in output.ranked_recommendations[0].cautions
+    assert "Dữ liệu hạn ngạch chưa được xác minh giữa các nguồn." in output.ranked_recommendations[0].cautions

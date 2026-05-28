@@ -79,7 +79,7 @@ def test_advisory_flow_returns_policy_checked_answer(monkeypatch):
     result = graph.invoke(state)
 
     assert result["final_answer"]
-    assert "Profile:" in result["final_answer"]
+    assert "Hồ sơ hiện tại" in result["final_answer"]
     assert result["uncertainty_reasons"] == []
 
     policy = result.get("policy_decision")
@@ -185,7 +185,7 @@ def test_advisory_flow_handles_empty_retrieval(monkeypatch):
     )
     result = graph.invoke(state)
 
-    assert "Chua co de xuat phu hop" in result["final_answer"]
+    assert "Chưa có đề xuất phù hợp" in result["final_answer"]
     assert result["policy_decision"] is not None
     assert "empty_retrieval" in result["policy_decision"].policy_flags
 
@@ -214,4 +214,4 @@ def test_graph_mock_retrieval_conflict_reaches_final_answer(monkeypatch):
     )
 
     assert "final_answer" in result
-    assert "Xac minh du lieu" in result["final_answer"]
+    assert "Xác minh dữ liệu" in result["final_answer"]

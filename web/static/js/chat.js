@@ -37,15 +37,15 @@ function renderProfileSummary(snapshot) {
   if (!node) return;
   const profile = getProfileState(snapshot);
   const entries = [
-    ["Nam tuyen sinh", profile.admission_year],
-    ["Tong diem", profile.total_score],
-    ["Nganh quan tam", (profile.preferred_majors || []).join(", ")],
-    ["Khu vuc", profile.location_preference],
-    ["Con thieu", (profile.missing_slots || []).join(", ")],
+    ["Năm tuyển sinh", profile.admission_year],
+    ["Tổng điểm", profile.total_score],
+    ["Ngành quan tâm", (profile.preferred_majors || []).join(", ")],
+    ["Khu vực", profile.location_preference],
+    ["Còn thiếu", (profile.missing_slots || []).join(", ")],
   ].filter(([, value]) => value);
 
   if (entries.length === 0) {
-    node.textContent = "Chua co du lieu ho so.";
+    node.textContent = "Chưa có dữ liệu hồ sơ.";
     return;
   }
 
@@ -58,7 +58,7 @@ function renderRecommendation(snapshot) {
   const node = document.getElementById("recommendation-panel");
   if (!node) return;
   const latest = getLatestRecommendation(snapshot.messages || []);
-  node.textContent = latest ? latest.content : "Chua co khuyen nghi.";
+  node.textContent = latest ? latest.content : "Chưa có khuyến nghị.";
 }
 
 function renderSnapshot(snapshot) {
@@ -70,7 +70,7 @@ function renderSnapshot(snapshot) {
 async function createSession() {
   const response = await fetch("/api/sessions", { method: "POST" });
   if (!response.ok) {
-    throw new Error("Khong the tao phien chat moi.");
+    throw new Error("Không thể tạo phiên chat mới.");
   }
   const payload = await response.json();
   currentSessionToken = payload.session.session_token;
@@ -81,7 +81,7 @@ async function createSession() {
 async function fetchSessionSnapshot(sessionToken) {
   const response = await fetch(`/api/sessions/${sessionToken}`);
   if (!response.ok) {
-    throw new Error("Khong the tai lai lich su hoi thoai.");
+    throw new Error("Không thể tải lại lịch sử hội thoại.");
   }
   return response.json();
 }
@@ -115,12 +115,12 @@ function schedulePolling(sessionToken) {
     const snapshot = await fetchSessionSnapshot(sessionToken);
     renderSnapshot(snapshot);
     if (snapshot.session.status === "completed") {
-      setStatus("Da co ket qua tu van.", "success");
+      setStatus("Đã có kết quả tư vấn.", "success");
       stopPolling();
       return;
     }
     if (snapshot.session.status === "failed") {
-      setStatus("Qua trinh phan tich bi gian doan.", "error");
+      setStatus("Quá trình phân tích bị gián đoạn.", "error");
       stopPolling();
       return;
     }
@@ -136,7 +136,7 @@ async function sendMessage(content) {
     body: JSON.stringify({ content }),
   });
   if (!response.ok) {
-    throw new Error("Khong gui duoc tin nhan.");
+    throw new Error("Không gửi được tin nhắn.");
   }
   return response.json();
 }
@@ -149,9 +149,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     const bootstrap = await ensureSession();
     renderSnapshot(bootstrap);
-    setStatus("San sang tu van.", "info");
+    setStatus("Sẵn sàng tư vấn.", "info");
   } catch (error) {
-    setStatus("Khong the khoi tao phien chat.", "error");
+    setStatus("Không thể khởi tạo phiên chat.", "error");
     form.querySelector("button[type='submit']").disabled = true;
     return;
   }
@@ -162,7 +162,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!content) return;
 
     try {
-      setStatus("Dang gui tin nhan...", "pending");
+      setStatus("Đang gửi tin nhắn...", "pending");
       const result = await sendMessage(content);
       input.value = "";
 
@@ -170,14 +170,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderSnapshot(snapshot);
 
       if (result.should_start_run) {
-        setStatus("Dang phan tich ho so...", "pending");
+        setStatus("Đang phân tích hồ sơ...", "pending");
         schedulePolling(currentSessionToken);
         return;
       }
 
-      setStatus("Da nhan cau hoi tiep theo.", "info");
+      setStatus("Đã nhận câu hỏi tiếp theo.", "info");
     } catch (error) {
-      setStatus("Khong gui duoc tin nhan.", "error");
+      setStatus("Không gửi được tin nhắn.", "error");
     }
   });
 
@@ -186,6 +186,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.localStorage.removeItem(SESSION_KEY);
     const snapshot = await createSession();
     renderSnapshot(snapshot);
-    setStatus("Da bat dau phien chat moi.", "info");
+    setStatus("Đã bắt đầu phiên chat mới.", "info");
   });
 });

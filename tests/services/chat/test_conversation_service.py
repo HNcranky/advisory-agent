@@ -35,4 +35,4 @@ def test_handle_user_message_returns_follow_up_when_score_missing():
 
     assert result.session_status == "collecting_profile"
     assert result.should_start_run is False
-    assert "bao nhieu" in result.assistant_message.lower()
+    assert "bao nhiêu" in result.assistant_message.lower()

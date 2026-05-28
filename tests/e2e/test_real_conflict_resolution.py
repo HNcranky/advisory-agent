@@ -29,4 +29,4 @@ def test_real_conflict_resolution_reaches_final_answer(monkeypatch):
 
     assert result.get("resolution_outcomes")
     assert result.get("final_answer")
-    assert "Xac minh du lieu" in result["final_answer"]
+    assert "Xác minh dữ liệu" in result["final_answer"]

@@ -33,6 +33,7 @@ def test_build_retrieval_filters():
 
 
 def test_fetch_candidates_maps_rows(monkeypatch):
+    monkeypatch.delenv("ADVISORY_MOCK_CONFLICTS", raising=False)
     fake_rows = [
         (
             "hust",
@@ -79,6 +80,7 @@ def test_fetch_candidates_returns_both_rows_when_two_sources_exist(monkeypatch):
     """When canonical_admission_records has two rows for the same logical program
     but different source URLs, fetch_candidates returns both as separate
     CandidateProgram objects. This guards against accidental DISTINCT/GROUP BY."""
+    monkeypatch.delenv("ADVISORY_MOCK_CONFLICTS", raising=False)
     fake_rows = [
         (
             "hust",

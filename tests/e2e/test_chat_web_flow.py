@@ -30,6 +30,18 @@ def test_chat_client_clears_stale_session_token_and_reports_startup_errors():
     styles = Path("web/static/css/chat.css").read_text(encoding="utf-8")
 
     assert "window.localStorage.removeItem(SESSION_KEY)" in script
-    assert 'setStatus("Khong the khoi tao phien chat.", "error")' in script
+    assert 'setStatus("Không thể khởi tạo phiên chat.", "error")' in script
     assert ".chat-status[data-tone=\"error\"]" in styles
     assert ".message--assistant" in styles
+
+
+def test_chat_client_and_styles_preserve_readable_multiline_output():
+    script = Path("web/static/js/chat.js").read_text(encoding="utf-8")
+    styles = Path("web/static/css/chat.css").read_text(encoding="utf-8")
+    template = Path("web/templates/chat.html").read_text(encoding="utf-8")
+
+    assert "Hồ sơ tạm thời" in template
+    assert "Khuyến nghị mới nhất" in template
+    assert "Chưa có khuyến nghị." in script
+    assert "Tổng điểm" in script
+    assert "white-space: pre-wrap" in styles
