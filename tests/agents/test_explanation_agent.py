@@ -101,3 +101,72 @@ def test_explanation_includes_data_verification_section_for_resolved_outcome():
     assert "Cong nghe thong tin" in output.final_answer
     assert "150" in output.final_answer
     assert "Nguon mock: VNU proposal PDF" in output.final_answer
+
+
+def test_explanation_deduplicates_same_program_recommendations_and_keeps_all_sources():
+    state = AgentState(user_query="Tu van")
+    state.student_profile = StudentProfile(
+        total_score=26.5,
+        subject_combination="A00",
+        preferred_majors=["cntt"],
+        preferred_schools=["vnu_uet"],
+    )
+    duplicate_id = "vnu_uet:2026:cntt:thpt_score"
+    state.retrieved_programs = [
+        CandidateProgram(
+            candidate_id=duplicate_id,
+            school_id="vnu_uet",
+            school_name="Dai hoc Cong nghe - DHQGHN",
+            admission_year=2026,
+            program_id="cntt",
+            program_name="Cong nghe thong tin",
+            admission_method="thpt_score",
+            evidence=[
+                Evidence(
+                    source_url="mock://uet/program-page",
+                    school_name="Dai hoc Cong nghe - DHQGHN",
+                    admission_year=2026,
+                    field_name="quota",
+                )
+            ],
+        ),
+        CandidateProgram(
+            candidate_id=duplicate_id,
+            school_id="vnu_uet",
+            school_name="Dai hoc Cong nghe - DHQGHN",
+            admission_year=2026,
+            program_id="cntt",
+            program_name="Cong nghe thong tin",
+            admission_method="thpt_score",
+            evidence=[
+                Evidence(
+                    source_url="mock://vnu/proposal-pdf",
+                    school_name="Dai hoc Cong nghe - DHQGHN",
+                    admission_year=2026,
+                    field_name="quota",
+                )
+            ],
+        ),
+    ]
+    state.ranked_recommendations = [
+        RankedRecommendation(
+            candidate_id=duplicate_id,
+            band="safe",
+            score=1.0,
+            summary="fit",
+            reasons=["Preferred major matches candidate program."],
+        ),
+        RankedRecommendation(
+            candidate_id=duplicate_id,
+            band="safe",
+            score=1.0,
+            summary="fit",
+            reasons=["Preferred major matches candidate program."],
+        ),
+    ]
+
+    output = explanation_agent(state)
+
+    assert output.final_answer.count("Cong nghe thong tin - Dai hoc Cong nghe - DHQGHN") == 1
+    assert "mock://uet/program-page" in output.final_answer
+    assert "mock://vnu/proposal-pdf" in output.final_answer

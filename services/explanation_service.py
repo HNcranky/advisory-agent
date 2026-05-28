@@ -30,14 +30,23 @@ def build_explanation(
     lines: List[str] = []
     lines.append(_profile_summary(profile))
 
-    candidate_map: Dict[str, CandidateProgram] = {
-        candidate.candidate_id: candidate for candidate in candidates
-    }
+    candidates_by_id: Dict[str, List[CandidateProgram]] = {}
+    for candidate in candidates:
+        candidates_by_id.setdefault(candidate.candidate_id, []).append(candidate)
 
     if recommendations:
         lines.append("Goi y chuong trinh phu hop:")
-        for idx, recommendation in enumerate(recommendations[:5], start=1):
-            candidate = candidate_map.get(recommendation.candidate_id)
+        displayed_recommendations: List[RankedRecommendation] = []
+        displayed_ids = set()
+        for recommendation in recommendations:
+            if recommendation.candidate_id in displayed_ids:
+                continue
+            displayed_recommendations.append(recommendation)
+            displayed_ids.add(recommendation.candidate_id)
+
+        for idx, recommendation in enumerate(displayed_recommendations[:5], start=1):
+            candidate_group = candidates_by_id.get(recommendation.candidate_id, [])
+            candidate = candidate_group[0] if candidate_group else None
             if not candidate:
                 continue
             lines.append(
@@ -52,13 +61,15 @@ def build_explanation(
         lines.append("Chua co de xuat phu hop tu du lieu hien tai.")
 
     cited_sources: List[str] = []
+    cited_ids = set()
     for recommendation in recommendations:
-        candidate = candidate_map.get(recommendation.candidate_id)
-        if not candidate:
+        if recommendation.candidate_id in cited_ids:
             continue
-        for evidence in candidate.evidence:
-            if evidence.source_url:
-                cited_sources.append(evidence.source_url)
+        cited_ids.add(recommendation.candidate_id)
+        for candidate in candidates_by_id.get(recommendation.candidate_id, []):
+            for evidence in candidate.evidence:
+                if evidence.source_url:
+                    cited_sources.append(evidence.source_url)
 
     if cited_sources:
         lines.append("Nguon tham chieu:")
