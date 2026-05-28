@@ -95,3 +95,33 @@ def test_repository_wraps_jsonb_payloads_with_psycopg2_json_adapter():
     assert isinstance(create_run_params[0], Json)
     assert isinstance(complete_run_params[0], Json)
     assert complete_run_params[0].adapted["profile_state"]["admission_year"] == 2026
+
+
+class FakeCursorRunStatus(FakeCursor):
+    def __init__(self, status):
+        super().__init__()
+        self._row = (status,)
+
+
+def test_get_run_status_returns_status_string():
+    conn = FakeConnection()
+    conn.cursor_obj = FakeCursorRunStatus("running")
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+
+    status = repo.get_run_status(run_id=42)
+
+    sql, params = conn.cursor_obj.statements[0]
+    assert status == "running"
+    assert "SELECT status" in sql and "chat_advisory_runs" in sql
+    assert params == (42,)
+
+
+def test_get_run_status_returns_none_when_missing():
+    class EmptyCursor(FakeCursor):
+        def fetchone(self):
+            return None
+    conn = FakeConnection()
+    conn.cursor_obj = EmptyCursor()
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+
+    assert repo.get_run_status(run_id=999) is None

@@ -189,6 +189,18 @@ class ChatSessionRepository:
         cur.close()
         conn.close()
         
+    def get_run_status(self, run_id: int):
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT status FROM chat_advisory_runs WHERE id = %s",
+            (run_id,),
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        return row[0] if row else None
+
     def update_session_status(self, session_token: str, status: str):
         conn = self.connection_factory()
         cur = conn.cursor()
