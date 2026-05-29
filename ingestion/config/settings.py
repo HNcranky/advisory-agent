@@ -57,6 +57,13 @@ GEMINI_OCR_MODEL = os.getenv(
 FETCH_TIMEOUT = int(os.getenv("FETCH_TIMEOUT", 30))
 FETCH_MAX_RETRIES = int(os.getenv("FETCH_MAX_RETRIES", 3))
 FETCH_RETRY_BACKOFF = float(os.getenv("FETCH_RETRY_BACKOFF", 1.5))
+# Default OFF: several official .gov.vn admission sources ship broken certs.
+# Set ADVISORY_FETCH_VERIFY_SSL=true to enforce verification.
+FETCH_VERIFY_SSL = os.getenv("ADVISORY_FETCH_VERIFY_SSL", "false").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",

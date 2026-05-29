@@ -36,6 +36,7 @@ def traced(stage: str, sequence: int, output_extractor: Callable, repository: Tr
             try:
                 output_json = output_extractor(result, state)
             except Exception as exc:
+                logger.warning("trace extractor failed for stage=%s: %r", stage, exc)
                 output_json = {"_extractor_error": repr(exc)}
             if event_id is not None:
                 _safe(repo.complete_event, event_id, output_json)

@@ -4,7 +4,7 @@ import os
 from google import genai
 from google.genai import types
 
-from services.inference.models import InferenceResult
+from services.inference.models import InferenceError, InferenceResult
 
 
 class GeminiProvider:
@@ -20,24 +20,55 @@ class GeminiProvider:
 
     def generate(self, request, policy):
         if not self._api_key_present:
-            raise RuntimeError("GEMINI_API_KEY is not configured")
+            raise InferenceError("GEMINI_API_KEY is not configured")
 
         json_mode = request.output_mode == "json"
-        response = self._client.models.generate_content(
-            model=policy.primary_model,
-            contents=request.user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=request.system_prompt,
-                temperature=request.temperature,
-                response_mime_type="application/json" if json_mode else None,
-            ),
-        )
-        text = (getattr(response, "text", "") or "").strip()
-        if json_mode and not text:
-            raise RuntimeError(
-                f"Gemini returned empty text for agent={request.agent_name} in json mode"
+        try:
+            response = self._client.models.generate_content(
+                model=policy.primary_model,
+                contents=request.user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=request.system_prompt,
+                    temperature=request.temperature,
+                    response_mime_type="application/json" if json_mode else None,
+                ),
             )
-        parsed = json.loads(text) if json_mode else None
+        except Exception as exc:  # hard API failure: network, auth, rate limit, 5xx
+            raise InferenceError(
+                f"Gemini API call failed for agent={request.agent_name} "
+                f"model={policy.primary_model}: {exc!r}"
+            ) from exc
+
+        text = (getattr(response, "text", "") or "").strip()
+
+        if not json_mode:
+            return InferenceResult(
+                agent_name=request.agent_name,
+                model=policy.primary_model,
+                provider=self.provider_name,
+                content=text,
+            )
+
+        if not text:
+            return InferenceResult(
+                agent_name=request.agent_name,
+                model=policy.primary_model,
+                provider=self.provider_name,
+                content=text,
+                failure_type="STRUCTURE_FAILURE",
+            )
+
+        try:
+            parsed = json.loads(text)
+        except (ValueError, TypeError):
+            return InferenceResult(
+                agent_name=request.agent_name,
+                model=policy.primary_model,
+                provider=self.provider_name,
+                content=text,
+                failure_type="STRUCTURE_FAILURE",
+            )
+
         return InferenceResult(
             agent_name=request.agent_name,
             model=policy.primary_model,
