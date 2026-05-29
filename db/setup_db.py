@@ -2,7 +2,13 @@ import sys
 import os
 from pathlib import Path
 
-                          
+# Windows consoles default to cp1252, which cannot encode the emoji used in the
+# progress output below. Force UTF-8 so `python -m db.setup_db` works out of the box.
+for _stream in (sys.stdout, sys.stderr):
+    reconfigure = getattr(_stream, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(encoding="utf-8")
+
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
