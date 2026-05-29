@@ -46,48 +46,75 @@ function wireCollapseButton(shell, state, side) {
   });
 }
 
-function closeDrawerInternal() {
-  document.body.classList.remove("drawer-open--left", "drawer-open--right");
-  const backdrop = document.getElementById("drawer-backdrop");
-  if (backdrop) backdrop.hidden = true;
+let activeDrawer = null;
+let drawerOpener = null;
+let escListener = null;
+
+function backdrop() {
+  return document.getElementById("drawer-backdrop");
 }
 
-function openDrawerInternal(side) {
-  const cls = side === "left" ? "drawer-open--left" : "drawer-open--right";
-  document.body.classList.remove("drawer-open--left", "drawer-open--right");
-  document.body.classList.add(cls);
-  const backdrop = document.getElementById("drawer-backdrop");
-  if (backdrop) backdrop.hidden = false;
+function panelIdForSide(side) {
+  return side === "right" ? "trace-panel" : "profile-panel";
+}
+
+export function openDrawer(side) {
+  const panel = document.getElementById(panelIdForSide(side));
+  if (!panel) return;
+  if (activeDrawer && activeDrawer !== panel) {
+    activeDrawer.classList.remove("panel--drawer-open");
+  }
+  drawerOpener = document.activeElement;
+  activeDrawer = panel;
+  panel.classList.add("panel--drawer-open");
+  document.body.classList.add("drawer-open");
+  const bd = backdrop();
+  if (bd) {
+    bd.hidden = false;
+    bd.addEventListener("click", closeDrawer, { once: true });
+  }
+  if (!escListener) {
+    escListener = (e) => { if (e.key === "Escape") closeDrawer(); };
+    document.addEventListener("keydown", escListener);
+  }
+  const closeBtn = panel.querySelector(".panel__drawer-close");
+  if (closeBtn) closeBtn.focus();
+}
+
+export function closeDrawer() {
+  if (!activeDrawer) return;
+  activeDrawer.classList.remove("panel--drawer-open");
+  document.body.classList.remove("drawer-open");
+  const bd = backdrop();
+  if (bd) bd.hidden = true;
+  if (escListener) {
+    document.removeEventListener("keydown", escListener);
+    escListener = null;
+  }
+  if (drawerOpener && typeof drawerOpener.focus === "function") {
+    drawerOpener.focus();
+  }
+  activeDrawer = null;
+  drawerOpener = null;
 }
 
 function wireDrawerButton(side) {
   const buttonId = side === "left" ? "open-left-drawer" : "open-right-drawer";
   const button = document.getElementById(buttonId);
   if (!button) return;
-  button.addEventListener("click", () => openDrawerInternal(side));
+  button.addEventListener("click", () => openDrawer(side));
 }
 
 function wireDrawerDismiss() {
-  const backdrop = document.getElementById("drawer-backdrop");
-  if (backdrop) {
-    backdrop.addEventListener("click", closeDrawerInternal);
-  }
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeDrawerInternal();
+  const panels = ["profile-panel", "trace-panel"];
+  panels.forEach((id) => {
+    const closeBtn = document.getElementById(id)?.querySelector(".panel__drawer-close");
+    if (closeBtn) closeBtn.addEventListener("click", closeDrawer);
   });
 }
 
 function syncDrawerForViewport(mql) {
-  // When transitioning out of mobile, ensure no stale drawer state lingers.
-  if (!mql.matches) closeDrawerInternal();
-}
-
-export function openDrawer(side) {
-  openDrawerInternal(side === "right" ? "right" : "left");
-}
-
-export function closeDrawer() {
-  closeDrawerInternal();
+  if (!mql.matches) closeDrawer();
 }
 
 export function initCollapseHandles() {
