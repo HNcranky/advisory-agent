@@ -25,3 +25,19 @@ def test_interpret_policy_ambiguity_returns_structured_warning():
 
     assert parsed["requires_human_verification"] is True
     assert parsed["warnings"] == ["Ambiguous quota wording."]
+
+
+from services.inference.models import InferenceError
+
+
+class _RaisingGateway:
+    def is_available(self):
+        return True
+
+    def run(self, request):
+        raise InferenceError("boom")
+
+
+def test_policy_ambiguity_degrades_on_inference_error():
+    result = interpret_policy_ambiguity("query", ["some conflict"], _RaisingGateway())
+    assert result == {"warnings": [], "requires_human_verification": False}
