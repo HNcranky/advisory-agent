@@ -51,3 +51,23 @@ def test_chat_page_preserves_legacy_ids_for_existing_js():
     assert response.status_code == 200
     for legacy in ("chat-transcript", "chat-form", "chat-input", "profile-summary", "trace-cards"):
         assert f'id="{legacy}"' in body
+
+
+def test_chat_page_shows_composer_hint():
+    client = TestClient(build_app())
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Ctrl+Enter để gửi" in response.text
+
+
+def test_chat_page_has_help_popover_and_reset_inside():
+    client = TestClient(build_app())
+    response = client.get("/")
+    assert response.status_code == 200
+    body = response.text
+    assert 'id="help-button"' in body
+    assert 'id="help-popover"' in body
+    assert 'id="reset-session"' in body
+    popover_idx = body.index('id="help-popover"')
+    reset_idx = body.index('id="reset-session"')
+    assert reset_idx > popover_idx, "reset-session must be rendered inside help-popover"

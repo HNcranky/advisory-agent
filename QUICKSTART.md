@@ -113,7 +113,12 @@ $env:ADVISORY_DEBUG_UI="1"
 uvicorn web.app:build_app --factory --reload --port 8000
 ```
 
-Then open `http://127.0.0.1:8000/?debug=1`. The right-hand "Trace" panel shows one card per agent stage; click a card to inspect its output JSON. Without the env flag, the panel is hidden. `?debug=1` alone also enables it client-side without restarting the server.
+Then open `http://127.0.0.1:8000/?debug=1`. The right-hand "Phân tích của AI" panel
+shows one card per agent stage with a Vietnamese label and an inline SVG icon
+(`Phân tích hồ sơ`, `Tra cứu chương trình`, `Đối chiếu nguồn dữ liệu`, ...).
+In debug mode each card becomes clickable and expands to pretty-printed
+`output_json` for that stage. Without the env flag or query param the panel
+remains visible during a run but cards are non-interactive.
 
 ## 6. Demo flow
 
@@ -142,6 +147,41 @@ pytest -m requires_real_dataset -v
 ```
 
 This requires a reachable Postgres database and `tests/e2e/fixtures/real_dataset_dump.sql` exported from accepted HUST/VNU-UET ingestion. The real-data test is the thesis/demo-prep gate; mock mode does not replace it.
+
+## 7. UI features
+
+- **Theme toggle** — click `🌙` in the header to switch dark / light; preference
+  persists per browser via `localStorage`. The page also honours
+  `prefers-color-scheme` on first visit, and the server-side default can be
+  overridden with `ADVISORY_THEME_DEFAULT=light|dark`.
+- **Column collapse** — chevron handles (`◀` / `▶`) at the inner edge of each
+  side panel collapse the column to a 32px gutter; click again to expand.
+  Collapse state persists per browser.
+- **Mobile drawer** — under 900px the side panels become overlays. Tap the
+  hamburger icons in the header to open; press `Escape` or tap the backdrop
+  to close.
+- **Help popover** — the `?` icon opens a popover with the app version
+  (read from `pyproject.toml`) and a `Bắt đầu lại` link that resets the session.
+- **Markdown** — assistant final recommendations are rendered as markdown
+  (bold school names, bullet lists). Loaded via `marked.js` from CDN with SRI.
+
+### Manual smoke checklist
+
+After any UI change run this checklist locally:
+
+```text
+1. Light → click 🌙 → dark applied immediately, reload → still dark.
+2. Toggle left/right column collapse → reload → state persisted.
+3. Send "Em muốn học CNTT" → user bubble right, AI follow-up bubble left.
+4. Complete profile, trigger run → trace cards flip pending → running
+   (spinner) → completed (duration), Vietnamese labels visible.
+5. Visit /?debug=1 → trace cards become clickable, expand to show output_json.
+6. Final recommendation: bold school names + bullet list render correctly
+   (markdown).
+7. Resize browser < 900px → side panels become drawers, header gains
+   drawer-open icons.
+8. Disconnect network mid-run → toast appears, polling auto-retries with backoff.
+```
 
 ## Troubleshooting
 

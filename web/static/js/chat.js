@@ -1,117 +1,39 @@
 import { initTheme } from "./modules/theme.js";
 import { initCollapseHandles } from "./modules/layout.js";
+import { renderTranscript, appendMessage, renderRecommendationCard } from "./modules/messages.js";
+import {
+  renderTrace,
+  startTracePolling,
+  stopTracePolling,
+  debugUiEnabled,
+} from "./modules/trace.js";
+import { toast } from "./modules/toasts.js";
+
+const COMPOSER_MAX_PX = 240;
+
+function autoGrow(textarea) {
+  if (!textarea) return;
+  textarea.style.height = "auto";
+  textarea.style.height = Math.min(textarea.scrollHeight, COMPOSER_MAX_PX) + "px";
+}
+
+function syncSendDisabled(input, button, statusEl) {
+  if (!input || !button) return;
+  const empty = input.value.trim().length === 0;
+  const pending = statusEl?.dataset.tone === "pending";
+  button.disabled = empty || pending;
+}
 
 const SESSION_KEY = "student-advisory-session-token";
 const POLL_INTERVAL_MS = 1200;
-const TRACE_POLL_INTERVAL_MS = 1000;
-const TRACE_STAGES = ["profile", "retrieve", "conflict", "reason", "policy", "explain"];
-let tracePollTimer = null;
-const expandedStages = new Set();
-
-function debugUiEnabled() {
-  const fromTemplate = document.querySelector(".chat-shell")?.dataset.debugUi === "true";
-  const fromUrl = new URLSearchParams(window.location.search).get("debug") === "1";
-  return fromTemplate || fromUrl;
-}
-
-function showTracePanel() {
-  const panel = document.getElementById("trace-panel");
-  if (panel) panel.hidden = false;
-}
-
-async function fetchTrace(sessionToken) {
-  const r = await fetch(`/api/sessions/${sessionToken}/trace`);
-  if (!r.ok) throw new Error("trace fetch failed");
-  return r.json();
-}
-
-function formatDuration(ms) {
-  if (ms == null) return "";
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function statusMeta(event) {
-  switch (event.status) {
-    case "completed": return formatDuration(event.duration_ms);
-    case "running":   return "running…";
-    case "failed":    return "failed";
-    default:          return "pending";
-  }
-}
-
-function statusIcon(status) {
-  switch (status) {
-    case "completed": return "●";
-    case "running":   return "⟳";
-    case "failed":    return "✕";
-    default:          return "○";
-  }
-}
-
-function renderTraceCards(events) {
-  const root = document.getElementById("trace-cards");
-  if (!root) return;
-  events.forEach((event) => {
-    const card = root.querySelector(`[data-stage="${event.stage}"]`);
-    if (!card) return;
-
-    card.classList.remove(
-      "trace-card--pending",
-      "trace-card--running",
-      "trace-card--completed",
-      "trace-card--failed",
-    );
-    card.classList.add(`trace-card--${event.status}`);
-
-    card.querySelector(".trace-card__icon").textContent = statusIcon(event.status);
-    card.querySelector(".trace-card__meta").textContent = statusMeta(event);
-
-    const body = card.querySelector(".trace-card__body");
-    if (event.status === "completed" && event.output_json) {
-      body.textContent = JSON.stringify(event.output_json, null, 2);
-    } else if (event.status === "failed") {
-      body.textContent = event.error_text || "(no error text)";
-    } else {
-      body.textContent = "";
-    }
-
-    // Restore expanded state
-    const isExpanded = expandedStages.has(event.stage);
-    body.hidden = !isExpanded;
-    card.querySelector(".trace-card__header").setAttribute("aria-expanded", String(isExpanded));
-  });
-}
 
 let pollTimer = null;
 let currentSessionToken = null;
 
-function stopTracePolling() {
-  if (tracePollTimer) {
-    window.clearTimeout(tracePollTimer);
-    tracePollTimer = null;
-  }
-}
-
-function startTracePolling(sessionToken) {
-  if (!debugUiEnabled()) return;
-  stopTracePolling();
-
-  const tick = async () => {
-    try {
-      const payload = await fetchTrace(sessionToken);
-      renderTraceCards(payload.events);
-      if (payload.run_status === "running" || payload.run_status === "queued") {
-        tracePollTimer = window.setTimeout(tick, TRACE_POLL_INTERVAL_MS);
-      }
-    } catch (e) {
-      // trace fetch failures must not interfere with the chat UX
-      tracePollTimer = window.setTimeout(tick, TRACE_POLL_INTERVAL_MS * 2);
-    }
-  };
-
-  tick();
-}
+const traceOpts = () => ({
+  debug: debugUiEnabled(),
+  stageLabels: window.__stageLabels || [],
+});
 
 function setStatus(message, tone = "info") {
   const node = document.getElementById("chat-status");
@@ -128,23 +50,24 @@ function getLatestRecommendation(messages) {
   return [...messages].reverse().find((message) => message.kind === "assistant_result") || null;
 }
 
-function renderTranscript(messages) {
-  const node = document.getElementById("chat-transcript");
-  if (!node) return;
-  node.innerHTML = "";
-  messages.forEach((message) => {
-    const item = document.createElement("article");
-    item.className = `message message--${message.role}`;
-    item.dataset.kind = message.kind;
-    item.textContent = message.content;
-    node.appendChild(item);
-  });
+function profileIsEmpty(profile) {
+  if (!profile) return true;
+  return Object.values(profile).every(
+    (v) => v == null || v === "" || (Array.isArray(v) && v.length === 0),
+  );
 }
 
 function renderProfileSummary(snapshot) {
   const node = document.getElementById("profile-summary");
   if (!node) return;
   const profile = getProfileState(snapshot);
+
+  if (profileIsEmpty(profile)) {
+    node.innerHTML =
+      '<p class="card-empty">Hồ sơ sẽ tự cập nhật khi em trò chuyện.</p>';
+    return;
+  }
+
   const entries = [
     ["Năm tuyển sinh", profile.admission_year],
     ["Tổng điểm", profile.total_score],
@@ -154,7 +77,8 @@ function renderProfileSummary(snapshot) {
   ].filter(([, value]) => value);
 
   if (entries.length === 0) {
-    node.textContent = "Chưa có dữ liệu hồ sơ.";
+    node.innerHTML =
+      '<p class="card-empty">Hồ sơ sẽ tự cập nhật khi em trò chuyện.</p>';
     return;
   }
 
@@ -167,18 +91,44 @@ function renderRecommendation(snapshot) {
   const node = document.getElementById("recommendation-panel");
   if (!node) return;
   const latest = getLatestRecommendation(snapshot.messages || []);
-  node.textContent = latest ? latest.content : "Chưa có khuyến nghị.";
+  const status = snapshot.session?.status;
+
+  if (!latest && (status === "running" || status === "queued")) {
+    node.innerHTML = `
+      <div class="skeleton" aria-hidden="true">
+        <div class="skeleton-line skeleton-line--100"></div>
+        <div class="skeleton-line skeleton-line--85"></div>
+        <div class="skeleton-line skeleton-line--60"></div>
+      </div>
+      <span class="visually-hidden">Đang soạn khuyến nghị...</span>`;
+    return;
+  }
+
+  if (!latest) {
+    node.innerHTML = '<p class="card-empty">Chưa có khuyến nghị.</p>';
+    return;
+  }
+
+  renderRecommendationCard(node, latest.content);
 }
 
 function renderSnapshot(snapshot) {
-  renderTranscript(snapshot.messages || []);
+  const transcript = document.getElementById("chat-transcript");
+  renderTranscript(transcript, snapshot.messages || []);
   renderProfileSummary(snapshot);
   renderRecommendation(snapshot);
 }
 
 async function createSession() {
-  const response = await fetch("/api/sessions", { method: "POST" });
+  let response;
+  try {
+    response = await fetch("/api/sessions", { method: "POST" });
+  } catch (e) {
+    toast("Không khởi tạo được phiên. Tải lại trang.", { variant: "error" });
+    throw e;
+  }
   if (!response.ok) {
+    toast("Không khởi tạo được phiên. Tải lại trang.", { variant: "error" });
     throw new Error("Không thể tạo phiên chat mới.");
   }
   const payload = await response.json();
@@ -207,6 +157,7 @@ async function ensureSession() {
   } catch (error) {
     window.localStorage.removeItem(SESSION_KEY);
     currentSessionToken = null;
+    toast("Phiên cũ đã hết hạn, đã tạo phiên mới.", { variant: "info" });
     return createSession();
   }
 }
@@ -221,28 +172,26 @@ function stopPolling() {
 function schedulePolling(sessionToken) {
   stopPolling();
   pollTimer = window.setTimeout(async () => {
-    const snapshot = await fetchSessionSnapshot(sessionToken);
-    renderSnapshot(snapshot);
-    if (snapshot.session.status === "completed") {
-      setStatus("Đã có kết quả tư vấn.", "success");
-      stopPolling();
-      // do one last trace fetch so the final stage flips to completed instantly
-      if (debugUiEnabled()) {
-        fetchTrace(sessionToken).then((p) => renderTraceCards(p.events)).catch(() => {});
+    try {
+      const snapshot = await fetchSessionSnapshot(sessionToken);
+      renderSnapshot(snapshot);
+      if (snapshot.session.status === "completed") {
+        setStatus("Đã có kết quả tư vấn.", "success");
+        stopPolling();
         stopTracePolling();
+        return;
       }
-      return;
-    }
-    if (snapshot.session.status === "failed") {
-      setStatus("Quá trình phân tích bị gián đoạn.", "error");
-      stopPolling();
-      if (debugUiEnabled()) {
-        fetchTrace(sessionToken).then((p) => renderTraceCards(p.events)).catch(() => {});
+      if (snapshot.session.status === "failed") {
+        setStatus("Quá trình phân tích bị gián đoạn.", "error");
+        stopPolling();
         stopTracePolling();
+        return;
       }
-      return;
+      schedulePolling(sessionToken);
+    } catch (e) {
+      toast("Mất kết nối, đang thử lại...", { variant: "warning" });
+      pollTimer = window.setTimeout(() => schedulePolling(sessionToken), POLL_INTERVAL_MS);
     }
-    schedulePolling(sessionToken);
   }, POLL_INTERVAL_MS);
 }
 
@@ -263,38 +212,69 @@ document.addEventListener("DOMContentLoaded", async () => {
   const form = document.getElementById("chat-form");
   const input = document.getElementById("chat-input");
   const resetButton = document.getElementById("reset-session");
+  const sendButton = document.getElementById("send-button");
+  const statusEl = document.getElementById("chat-status");
+
+  input.addEventListener("input", () => {
+    autoGrow(input);
+    syncSendDisabled(input, sendButton, statusEl);
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      if (!sendButton.disabled) form.requestSubmit();
+    }
+  });
+
+  // Keep send-disabled in sync whenever status tone changes.
+  const statusObserver = new MutationObserver(() =>
+    syncSendDisabled(input, sendButton, statusEl)
+  );
+  if (statusEl) {
+    statusObserver.observe(statusEl, { attributes: true, attributeFilter: ["data-tone"] });
+  }
+
+  // Initial state.
+  autoGrow(input);
+  syncSendDisabled(input, sendButton, statusEl);
 
   initCollapseHandles();
   initTheme();
 
-  if (debugUiEnabled()) {
-    showTracePanel();
+  document.getElementById("chat-transcript")?.addEventListener("click", (event) => {
+    const chip = event.target.closest(".chip[data-prompt]");
+    if (!chip) return;
+    const textarea = document.getElementById("chat-input");
+    if (!textarea) return;
+    textarea.value = chip.dataset.prompt;
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    textarea.focus();
+  });
+
+  const helpButton = document.getElementById("help-button");
+  const helpPopover = document.getElementById("help-popover");
+  if (helpButton && helpPopover && typeof helpPopover.showModal === "function") {
+    helpButton.addEventListener("click", () => {
+      if (helpPopover.open) helpPopover.close();
+      else helpPopover.showModal();
+    });
+    helpPopover.addEventListener("click", (e) => {
+      if (e.target === helpPopover) helpPopover.close();
+    });
   }
 
-  document.querySelectorAll("#trace-cards .trace-card").forEach((card) => {
-    const header = card.querySelector(".trace-card__header");
-    header.addEventListener("click", () => {
-      const stage = card.dataset.stage;
-      const body = card.querySelector(".trace-card__body");
-      const expanded = expandedStages.has(stage);
-      if (expanded) {
-        expandedStages.delete(stage);
-        body.hidden = true;
-        header.setAttribute("aria-expanded", "false");
-      } else {
-        expandedStages.add(stage);
-        body.hidden = false;
-        header.setAttribute("aria-expanded", "true");
-      }
-    });
-  });
+  if (debugUiEnabled()) {
+    const panel = document.getElementById("trace-panel");
+    if (panel) panel.hidden = false;
+  }
 
   try {
     const bootstrap = await ensureSession();
     renderSnapshot(bootstrap);
     setStatus("Sẵn sàng tư vấn.", "info");
     if (debugUiEnabled() && bootstrap.session && bootstrap.session.status === "running") {
-      startTracePolling(currentSessionToken);
+      startTracePolling(currentSessionToken, traceOpts());
     }
   } catch (error) {
     setStatus("Không thể khởi tạo phiên chat.", "error");
@@ -308,17 +288,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!content) return;
 
     try {
-      setStatus("Đang gửi tin nhắn...", "pending");
+      setStatus("Đang gửi tin nhắn", "pending");
       const result = await sendMessage(content);
       input.value = "";
+      autoGrow(input);
+      syncSendDisabled(input, sendButton, statusEl);
 
       const snapshot = await fetchSessionSnapshot(currentSessionToken);
       renderSnapshot(snapshot);
 
       if (result.should_start_run) {
-        setStatus("Đang phân tích hồ sơ...", "pending");
+        setStatus("Đang phân tích hồ sơ", "pending");
         schedulePolling(currentSessionToken);
-        startTracePolling(currentSessionToken);
+        startTracePolling(currentSessionToken, traceOpts());
         return;
       }
 
@@ -328,10 +310,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  resetButton.addEventListener("click", async () => {
+  resetButton?.addEventListener("click", async () => {
     stopPolling();
     stopTracePolling();
     window.localStorage.removeItem(SESSION_KEY);
+    if (helpPopover?.open) helpPopover.close();
     const snapshot = await createSession();
     renderSnapshot(snapshot);
     setStatus("Đã bắt đầu phiên chat mới.", "info");
