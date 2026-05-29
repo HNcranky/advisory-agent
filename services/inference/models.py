@@ -3,6 +3,10 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
+class InferenceError(RuntimeError):
+    """Raised when the inference provider hits a hard failure (network, auth, rate limit)."""
+
+
 class InferenceRequest(BaseModel):
     agent_name: str
     task_type: str

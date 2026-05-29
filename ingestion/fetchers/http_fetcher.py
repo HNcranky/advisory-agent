@@ -3,16 +3,14 @@ import random
 import hashlib
 import logging
 import requests
-import urllib3
 from datetime import datetime
 from typing import Optional
 
 from ingestion.config.settings import (
     FETCH_TIMEOUT, FETCH_MAX_RETRIES, FETCH_RETRY_BACKOFF, USER_AGENTS,
+    FETCH_VERIFY_SSL,
 )
 from ingestion.models.pipeline_models import FetchResult
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +23,7 @@ def http_fetch(
     url: str,
     timeout: int = FETCH_TIMEOUT,
     max_retries: int = FETCH_MAX_RETRIES,
-    verify_ssl: bool = False,
+    verify_ssl: bool = FETCH_VERIFY_SSL,
 ) -> FetchResult:
     """
     Fetch a URL via HTTP with retry logic and full metadata.
@@ -48,6 +46,13 @@ def http_fetch(
         "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
         "Accept-Encoding": "gzip, deflate",
     }
+
+    if not verify_ssl:
+        logger.warning(
+            "SSL verification is disabled for %s. "
+            "Set ADVISORY_FETCH_VERIFY_SSL=true to enforce it.",
+            url,
+        )
 
     last_exception = None
 

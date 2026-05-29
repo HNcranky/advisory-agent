@@ -139,3 +139,22 @@ def test_retrieval_service_stays_deterministic_without_gateway_calls():
     }
 
     assert filters["preferred_majors"] == ["computer_science"]
+
+
+import logging
+
+
+def test_fetch_candidates_warns_on_mock_bypass(monkeypatch, caplog):
+    monkeypatch.setattr(retrieval_service, "mock_conflicts_enabled", lambda: True)
+    monkeypatch.setattr(
+        retrieval_service, "build_mock_conflict_candidates", lambda filters, limit: []
+    )
+
+    with caplog.at_level(logging.WARNING, logger="services.retrieval_service"):
+        result = retrieval_service.fetch_candidates({"admission_year": 2026})
+
+    assert result == []
+    assert any(
+        "ADVISORY_MOCK_CONFLICTS" in record.message and "bypass" in record.message.lower()
+        for record in caplog.records
+    )

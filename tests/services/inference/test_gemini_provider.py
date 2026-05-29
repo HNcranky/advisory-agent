@@ -114,33 +114,6 @@ def test_gemini_provider_omits_json_mime_type_for_free_text(monkeypatch):
     assert result.parsed_data is None
 
 
-def test_gemini_provider_raises_for_empty_json_text(monkeypatch):
-    class FakeModels:
-        def generate_content(self, *, model, contents, config=None):
-            return SimpleNamespace(text="")
-
-    class FakeClient:
-        def __init__(self, *, api_key):
-            self.models = FakeModels()
-
-    monkeypatch.setattr(gemini_provider_module.genai, "Client", FakeClient)
-
-    provider = GeminiProvider(api_key="test-key")
-    request = InferenceRequest(
-        agent_name="profile_agent",
-        task_type="profile_extraction",
-        system_prompt="Extract profile fields",
-        user_prompt="Student scored 27 in A00",
-        output_mode="json",
-    )
-    policy = InferencePolicy(
-        agent_name="profile_agent",
-        primary_model="gemini-2.5-flash-lite",
-    )
-
-    with pytest.raises(RuntimeError, match="empty"):
-        provider.generate(request, policy)
-
 
 def test_gemini_provider_requires_api_key(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
@@ -159,3 +132,76 @@ def test_gemini_provider_requires_api_key(monkeypatch):
 
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY is not configured"):
         provider.generate(request, policy)
+
+
+# --- hardening tests ---
+
+from services.inference.models import InferenceError
+
+
+class _Resp:
+    def __init__(self, text):
+        self.text = text
+
+
+class _FakeModels:
+    def __init__(self, text=None, exc=None):
+        self._text = text
+        self._exc = exc
+
+    def generate_content(self, **kwargs):
+        if self._exc is not None:
+            raise self._exc
+        return _Resp(self._text)
+
+
+class _FakeClient:
+    def __init__(self, text=None, exc=None):
+        self.models = _FakeModels(text=text, exc=exc)
+
+
+def _provider(client):
+    provider = GeminiProvider(api_key="dummy")
+    provider._client = client
+    provider._api_key_present = True
+    return provider
+
+
+def _request():
+    return InferenceRequest(
+        agent_name="resolution_agent",
+        task_type="conflict_tiebreak",
+        system_prompt="sys",
+        user_prompt="usr",
+        output_mode="json",
+    )
+
+
+def _policy():
+    return InferencePolicy(agent_name="resolution_agent", primary_model="gemini-2.5-flash-lite")
+
+
+def test_malformed_json_returns_structure_failure():
+    provider = _provider(_FakeClient(text="not json{"))
+    result = provider.generate(_request(), _policy())
+    assert result.failure_type == "STRUCTURE_FAILURE"
+    assert result.parsed_data is None
+
+
+def test_empty_text_returns_structure_failure():
+    provider = _provider(_FakeClient(text=""))
+    result = provider.generate(_request(), _policy())
+    assert result.failure_type == "STRUCTURE_FAILURE"
+
+
+def test_valid_json_parses():
+    provider = _provider(_FakeClient(text='{"confidence": "high"}'))
+    result = provider.generate(_request(), _policy())
+    assert result.failure_type is None
+    assert result.parsed_data == {"confidence": "high"}
+
+
+def test_hard_api_error_raises_inference_error():
+    provider = _provider(_FakeClient(exc=RuntimeError("429 rate limit")))
+    with pytest.raises(InferenceError):
+        provider.generate(_request(), _policy())
