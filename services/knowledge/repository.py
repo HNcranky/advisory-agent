@@ -1,5 +1,23 @@
+import hashlib
+
 from services.knowledge.db import get_knowledge_db_connection
-from services.knowledge.models import KnowledgeChunk, ScoredChunk
+from services.knowledge.models import KnowledgeChunk, ScoredChunk, KnowledgeDocument
+
+
+def chunk_content_hash(text: str) -> str:
+    """Single source of truth for the embedding-reuse-map key (Plan 05)."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _parse_vector(raw) -> list[float]:
+    if raw is None:
+        return []
+    if isinstance(raw, (list, tuple)):
+        return [float(x) for x in raw]
+    s = str(raw).strip().strip("[]")
+    if not s:
+        return []
+    return [float(x) for x in s.split(",")]
 
 
 def _vector_literal(embedding):
@@ -75,6 +93,35 @@ class KnowledgeChunkRepository:
             span_end=row[10],
         )
 
+    def get_embedding_map_for_document(self, doc_id: int) -> dict[str, list[float]]:
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT chunk_text, embedding FROM knowledge_chunks "
+            "WHERE knowledge_document_id = %s AND embedding IS NOT NULL",
+            (doc_id,),
+        )
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return {
+            chunk_content_hash(chunk_text): _parse_vector(embedding)
+            for chunk_text, embedding in rows
+        }
+
+    def delete_chunks_for_document(self, doc_id: int) -> int:
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM knowledge_chunks WHERE knowledge_document_id = %s",
+            (doc_id,),
+        )
+        deleted = cur.rowcount
+        conn.commit()
+        cur.close()
+        conn.close()
+        return deleted
+
     def search_by_metadata(self, school, topic=None, limit=20):
         conn = self.connection_factory()
         cur = conn.cursor()
@@ -131,3 +178,65 @@ class KnowledgeChunkRepository:
         cur.close()
         conn.close()
         return [self._row_to_scored(row) for row in rows]
+
+
+class KnowledgeDocumentRepository:
+    def __init__(self, connection_factory=get_knowledge_db_connection):
+        self.connection_factory = connection_factory
+
+    def get_document_by_url(self, url: str) -> KnowledgeDocument | None:
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, school, document_type, source_url, content_hash, raw_text "
+            "FROM knowledge_documents WHERE source_url = %s",
+            (url,),
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if row is None:
+            return None
+        return KnowledgeDocument(
+            id=row[0],
+            school=row[1],
+            document_type=row[2],
+            source_url=row[3],
+            content_hash=row[4],
+            raw_text=row[5],
+        )
+
+    def get_or_create_document(self, doc: KnowledgeDocument) -> int:
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO knowledge_documents
+                (school, document_type, source_url, raw_text)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (source_url) DO UPDATE SET
+                school        = EXCLUDED.school,
+                document_type = EXCLUDED.document_type,
+                raw_text      = EXCLUDED.raw_text,
+                fetched_at    = NOW()
+            RETURNING id
+            """,
+            (doc.school, doc.document_type, doc.source_url, doc.raw_text),
+        )
+        doc_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+        return doc_id
+
+    def mark_ingested(self, doc_id: int, content_hash: str) -> None:
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE knowledge_documents "
+            "SET content_hash = %s, ingested_at = NOW() WHERE id = %s",
+            (content_hash, doc_id),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
