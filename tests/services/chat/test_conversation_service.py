@@ -111,28 +111,28 @@ def test_conversation_service_accepts_intent_router_injection():
     assert service.intent_router is router
 
 
-# ─── Task 3: _append_return_prompt ───────────────────────────────────────────
+# ─── Resume offer (natural, không lặp câu hỏi cũ) ─────────────────────────────
 
-def test_append_return_prompt_adds_pending_question_when_in_advisory_flow():
+def test_maybe_offer_resume_adds_offer_when_in_advisory_flow():
     service, _ = _make_service()
     flow = FlowState(active_flow="ADVISORY_FLOW", pending_question="Bạn học khối gì?")
-    result = service._append_return_prompt("Xin lỗi, ngoài phạm vi.", flow)
-    assert "Bạn học khối gì?" in result
+    result = service._maybe_offer_resume("Xin lỗi, ngoài phạm vi.", flow)
     assert "Xin lỗi, ngoài phạm vi." in result
-    assert "Nhân tiện" in result
+    assert service.RESUME_OFFER in result
+    assert "Bạn học khối gì?" not in result  # KHÔNG lặp lại câu hỏi cũ
 
 
-def test_append_return_prompt_skips_when_no_active_flow():
+def test_maybe_offer_resume_skips_when_no_active_flow():
     service, _ = _make_service()
     flow = FlowState(active_flow=None, pending_question="Bạn học khối gì?")
-    result = service._append_return_prompt("Xin lỗi, ngoài phạm vi.", flow)
+    result = service._maybe_offer_resume("Xin lỗi, ngoài phạm vi.", flow)
     assert result == "Xin lỗi, ngoài phạm vi."
 
 
-def test_append_return_prompt_skips_when_no_pending_question():
+def test_maybe_offer_resume_skips_when_no_pending_question():
     service, _ = _make_service()
     flow = FlowState(active_flow="ADVISORY_FLOW", pending_question=None)
-    result = service._append_return_prompt("Xin lỗi, ngoài phạm vi.", flow)
+    result = service._maybe_offer_resume("Xin lỗi, ngoài phạm vi.", flow)
     assert result == "Xin lỗi, ngoài phạm vi."
 
 
@@ -317,10 +317,8 @@ def test_ac_knowledge_qa_fallback_format():
     assert "liên hệ" in result.assistant_message
 
 
-def test_ac_reask_appears_on_first_detour():
-    """REGRESSION (off-by-one): flow state seeded as _handle_advisory leaves it —
-    active_flow set, pending_question set, NO return_to_flow flag. The re-ask must
-    appear on the very first off-topic turn."""
+def test_ac_resume_offer_appears_on_first_detour():
+    """Rẽ ngang khỏi advisory flow → offer quay lại tự nhiên, KHÔNG lặp câu hỏi cũ."""
     flow = FlowState(
         active_flow="ADVISORY_FLOW",
         pending_question="Tổng điểm hoặc mức điểm ước tính của bạn là bao nhiêu?",
@@ -331,8 +329,8 @@ def test_ac_reask_appears_on_first_detour():
         flow=flow,
     )
     result = service.handle_user_message("tok", "thời tiết hôm nay thế nào?")
-    assert "Tổng điểm" in result.assistant_message
-    assert "Nhân tiện" in result.assistant_message
+    assert service.RESUME_OFFER in result.assistant_message
+    assert "Tổng điểm" not in result.assistant_message  # không lặp câu hỏi cũ
 
 
 def test_ac_profile_not_reset_on_side_query():
@@ -389,7 +387,7 @@ def test_knowledge_qa_data_answer_does_not_reset_profile_or_flow():
     result = service.handle_user_message("tok", "học phí UET bao nhiêu")
     assert repo.flow_state == flow          # untouched
     assert repo.profile_state.total_score == 25.0
-    assert "Nhân tiện" in result.assistant_message  # mid-flow re-ask still appended
+    assert service.RESUME_OFFER in result.assistant_message  # mid-flow resume offer appended
 
 
 def test_knowledge_qa_resolves_school_from_preferred_schools_when_intent_school_null():
@@ -482,3 +480,65 @@ def test_hybrid_does_not_reset_profile():
     result = service.handle_user_message("tok", "so sánh UET và HUST")
     assert result.profile_state.total_score == 27.0
     assert repo.profile_state.total_score == 27.0
+
+
+# ─── Plan 03: CONVERSATIONAL route ───────────────────────────────────────────
+
+def test_handle_conversational_greeting_returns_template_not_clarification():
+    service, repo = _make_service(
+        intent_result=IntentResult(route="CONVERSATIONAL", subtype="GREETING"),
+    )
+    result = service.handle_user_message("tok", "xin chào")
+
+    assert result.should_start_run is False
+    assert "nói rõ hơn câu hỏi" not in result.assistant_message
+    # repo.messages entries are (role, kind, content)
+    assistant_msgs = [m for m in repo.messages if m[0] == "assistant"]
+    assert len(assistant_msgs) == 1
+
+
+def test_handle_conversational_greeting_no_resume_when_no_active_flow():
+    service, repo = _make_service(
+        intent_result=IntentResult(route="CONVERSATIONAL", subtype="GREETING"),
+        flow=FlowState(),  # active_flow=None
+    )
+    result = service.handle_user_message("tok", "xin chào")
+    assert "Nhân tiện" not in result.assistant_message
+
+
+def test_knowledge_route_not_handled_as_conversational():
+    # FakeKnowledgeQA mặc định trả has_data=False → message no-data
+    service, repo = _make_service(
+        intent_result=IntentResult(route="KNOWLEDGE_QA", topic="tuition", school="VNU-UET"),
+    )
+    result = service.handle_user_message("tok", "Chào bạn, học phí UET?")
+
+    assert "Chào bạn!" not in result.assistant_message          # không phải greeting template
+    assert "chưa có dữ liệu" in result.assistant_message.lower()  # đi đúng nhánh knowledge
+
+
+# ─── Plan 04: Slot-aware clarification ───────────────────────────────────────
+
+def test_clarification_asks_for_missing_school():
+    service, repo = _make_service(
+        intent_result=IntentResult(route="CLARIFICATION", missing_fields=["school"]),
+    )
+    result = service.handle_user_message("tok", "học phí trường này thế nào?")
+    assert "trường nào" in result.assistant_message.lower()
+    assert "nói rõ hơn câu hỏi" not in result.assistant_message
+
+
+def test_clarification_asks_for_missing_subject_combination():
+    service, repo = _make_service(
+        intent_result=IntentResult(route="CLARIFICATION", missing_fields=["subject_combination"]),
+    )
+    result = service.handle_user_message("tok", "25 điểm thì chọn đâu?")
+    assert "tổ hợp" in result.assistant_message.lower()
+
+
+def test_clarification_falls_back_to_generic_when_no_missing_fields():
+    service, repo = _make_service(
+        intent_result=IntentResult(route="CLARIFICATION"),  # missing_fields=[]
+    )
+    result = service.handle_user_message("tok", "ý bạn là gì")
+    assert "rõ hơn" in result.assistant_message.lower()

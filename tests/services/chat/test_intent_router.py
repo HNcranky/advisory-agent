@@ -305,3 +305,30 @@ def test_intent_prompt_documents_hybrid_payload():
     assert "needs_advisory" in INTENT_SYSTEM_PROMPT
     assert "schools" in INTENT_SYSTEM_PROMPT
     assert "topics" in INTENT_SYSTEM_PROMPT
+
+
+def test_classify_passes_through_conversational_subtype():
+    r = _router(parsed_data={"route": "CONVERSATIONAL", "subtype": "GREETING"})
+    result = r.classify("xin chào", ChatProfileState())
+    assert result.route == "CONVERSATIONAL"
+    assert result.subtype == "GREETING"
+
+
+def test_classify_passes_through_missing_fields():
+    r = _router(parsed_data={"route": "CLARIFICATION", "missing_fields": ["school"]})
+    result = r.classify("học phí trường này", ChatProfileState())
+    assert result.route == "CLARIFICATION"
+    assert result.missing_fields == ["school"]
+
+
+def test_classify_missing_fields_defaults_empty():
+    r = _router(parsed_data={"route": "ADVISORY_FLOW"})
+    result = r.classify("25 điểm nên chọn ngành nào", ChatProfileState())
+    assert result.missing_fields == []
+
+
+def test_intent_prompt_documents_conversational_route():
+    from services.chat.intent_router import INTENT_SYSTEM_PROMPT
+    assert "CONVERSATIONAL" in INTENT_SYSTEM_PROMPT
+    assert "GREETING" in INTENT_SYSTEM_PROMPT
+    assert "missing_fields" in INTENT_SYSTEM_PROMPT

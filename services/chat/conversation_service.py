@@ -15,6 +15,17 @@ from services.profile_inference_service import build_profile_with_gateway
 
 logger = logging.getLogger(__name__)
 
+CLARIFICATION_PROMPTS = {
+    "school": "Bạn đang muốn tìm hiểu thông tin của trường nào?",
+    "programs": "Bạn muốn so sánh hoặc tìm hiểu (những) ngành nào?",
+    "subject_combination": "Bạn xét theo tổ hợp nào, ví dụ A00, A01 hay D01?",
+    "admission_year": "Bạn đang xét tuyển cho năm nào?",
+}
+CLARIFICATION_FIELD_ORDER = ["school", "programs", "subject_combination", "admission_year"]
+GENERIC_CLARIFICATION = (
+    "Bạn có thể nói rõ hơn câu hỏi của mình không? Mình muốn hiểu đúng để hỗ trợ tốt hơn."
+)
+
 
 class ConversationService:
     def __init__(self, repository=None, extract_profile=None, intent_router=None, knowledge_qa=None):
@@ -53,7 +64,13 @@ class ConversationService:
             return self._handle_hybrid(session_token, content, intent, profile_state, flow_state, session_status)
         if intent.route == "OUT_OF_SCOPE":
             return self._handle_out_of_scope(session_token, profile_state, flow_state, session_status)
-        return self._handle_clarification(session_token, profile_state, flow_state, session_status)
+        if intent.route == "CONVERSATIONAL":
+            return self._handle_conversational(
+                session_token, content, intent, profile_state, flow_state, session_status
+            )
+        return self._handle_clarification(
+            session_token, intent, profile_state, flow_state, session_status
+        )
 
     def _handle_advisory(self, session_token, content, profile_state, flow_state):
         extracted = self.extract_profile(content)
@@ -125,7 +142,7 @@ class ConversationService:
             )
             citations = []
 
-        response = self._append_return_prompt(body, flow_state)
+        response = self._maybe_offer_resume(body, flow_state)
         self.repository.append_message(session_token, "assistant", response, "assistant_result")
         return ConversationTurnResult(
             session_status=session_status,
@@ -188,12 +205,29 @@ class ConversationService:
         sources = "\n".join(f"- {url}" for url in urls)
         return f"{answer}\n\nNguồn:\n{sources}"
 
+    def _handle_conversational(
+        self, session_token, content, intent, profile_state, flow_state, session_status
+    ):
+        from services.chat.conversational_handler import build_conversational_response
+
+        body = build_conversational_response(intent.subtype, seed=len(content))
+        # _maybe_offer_resume only fires when an advisory flow is active,
+        # so a greeting with no active flow won't include the resume offer.
+        response = self._maybe_offer_resume(body, flow_state)
+        self.repository.append_message(session_token, "assistant", response, "assistant_result")
+        return ConversationTurnResult(
+            session_status=session_status,
+            assistant_message=response,
+            should_start_run=False,
+            profile_state=profile_state,
+        )
+
     def _handle_out_of_scope(self, session_token, profile_state, flow_state, session_status):
         msg = (
             "Xin lỗi, câu hỏi này nằm ngoài phạm vi tư vấn tuyển sinh của mình. "
             "Mình chỉ có thể hỗ trợ các vấn đề liên quan đến tuyển sinh đại học."
         )
-        response = self._append_return_prompt(msg, flow_state)
+        response = self._maybe_offer_resume(msg, flow_state)
         self.repository.append_message(session_token, "assistant", response, "assistant_result")
         return ConversationTurnResult(
             session_status=session_status,
@@ -202,9 +236,9 @@ class ConversationService:
             profile_state=profile_state,
         )
 
-    def _handle_clarification(self, session_token, profile_state, flow_state, session_status):
-        msg = "Bạn có thể nói rõ hơn câu hỏi của mình không? Mình muốn hiểu đúng để hỗ trợ tốt hơn."
-        response = self._append_return_prompt(msg, flow_state)
+    def _handle_clarification(self, session_token, intent, profile_state, flow_state, session_status):
+        msg = self._clarification_question(intent.missing_fields)
+        response = self._maybe_offer_resume(msg, flow_state)
         self.repository.append_message(session_token, "assistant", response, "assistant_result")
         return ConversationTurnResult(
             session_status=session_status,
@@ -213,13 +247,21 @@ class ConversationService:
             profile_state=profile_state,
         )
 
-    def _append_return_prompt(self, message: str, flow_state) -> str:
-        """Re-ask the pending advisory question iff the user is mid-advisory-flow.
+    @staticmethod
+    def _clarification_question(missing_fields) -> str:
+        for field in CLARIFICATION_FIELD_ORDER:
+            if field in (missing_fields or []):
+                return CLARIFICATION_PROMPTS[field]
+        return GENERIC_CLARIFICATION
 
-        Keyed off active_flow + pending_question (both persisted during the prior
-        advisory turn), so the re-ask fires on the FIRST off-topic turn — no flag
-        that gets set only after the response is built.
+    RESUME_OFFER = "Bạn có muốn tiếp tục phần tư vấn lúc nãy không?"
+
+    def _maybe_offer_resume(self, message: str, flow_state) -> str:
+        """Offer quay lại advisory flow một cách tự nhiên khi user rẽ ngang.
+
+        Chỉ kích hoạt khi đang giữa advisory flow (active_flow set và còn
+        pending_question). KHÔNG lặp lại nguyên câu hỏi cũ — tránh cảm giác máy móc.
         """
         if flow_state.active_flow == "ADVISORY_FLOW" and flow_state.pending_question:
-            return f"{message}\n\nNhân tiện, {flow_state.pending_question}"
+            return f"{message}\n\n{self.RESUME_OFFER}"
         return message
