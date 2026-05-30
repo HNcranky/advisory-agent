@@ -1,3 +1,4 @@
+import logging
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -5,6 +6,8 @@ from pydantic import BaseModel, Field
 from services import build_default_gateway
 from services.chat.models import ChatProfileState
 from services.inference.models import InferenceRequest
+
+logger = logging.getLogger(__name__)
 
 INTENT_SYSTEM_PROMPT = """
 Bạn là bộ phân loại intent cho hệ thống tư vấn tuyển sinh đại học Việt Nam.
@@ -108,7 +111,8 @@ class IntentRouter:
             if not result.parsed_data:
                 return _FALLBACK
             return IntentResult.model_validate(result.parsed_data)
-        except Exception:
+        except Exception as exc:
+            logger.warning("intent classification failed, using fallback route: %r", exc)
             return _FALLBACK
 
     def _build_user_prompt(self, message: str, profile_state: ChatProfileState) -> str:

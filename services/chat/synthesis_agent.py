@@ -1,6 +1,10 @@
+import logging
+
 from services import build_default_gateway
 from services.chat.hybrid_models import AdvisoryBlock, KnowledgeBlock
 from services.inference.models import InferenceRequest
+
+logger = logging.getLogger(__name__)
 
 SYNTHESIS_SYSTEM_PROMPT = """
 Bạn là trợ lý tổng hợp câu trả lời tư vấn tuyển sinh đại học Việt Nam.
@@ -28,7 +32,8 @@ class SynthesisAgent:
     def synthesize(self, advisory: AdvisoryBlock, knowledge: list, question: str) -> str:
         try:
             body = self._llm_synthesize(advisory, knowledge, question)
-        except Exception:
+        except Exception as exc:
+            logger.warning("LLM synthesis failed, falling back to concatenation: %r", exc)
             body = self._concatenate(advisory, knowledge)
         sources = self._merge_sources(advisory, knowledge)
         if sources:

@@ -1,3 +1,5 @@
+import logging
+
 from services import build_default_gateway
 from services.chat.intent_router import IntentRouter
 from services.chat.models import ConversationTurnResult
@@ -10,6 +12,8 @@ from services.chat.profile_state_service import (
 from services.chat.repository import ChatSessionRepository
 from services.knowledge.qa_service import KnowledgeQAService
 from services.profile_inference_service import build_profile_with_gateway
+
+logger = logging.getLogger(__name__)
 
 
 class ConversationService:
@@ -104,8 +108,10 @@ class ConversationService:
                 topic=intent.topic,
                 conversation_context="",
             )
-        except Exception:
-            result = None  # any embed/LLM/DB failure → graceful fallback below
+        except Exception as exc:
+            # any embed/LLM/DB failure → graceful fallback below
+            logger.warning("knowledge QA path failed for school=%r topic=%r: %r", school, intent.topic, exc)
+            result = None
 
         if result is not None and result.has_data and result.answer:
             body = self._format_answer_with_sources(result.answer, result.citations)

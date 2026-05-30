@@ -1,3 +1,4 @@
+import logging
 from concurrent.futures import ThreadPoolExecutor
 
 from services.chat.advisory_runner import run_advisory_for_session
@@ -5,6 +6,8 @@ from services.chat.hybrid_models import AdvisoryBlock
 from services.chat.knowledge_fanout import run_knowledge_fanout
 from services.chat.synthesis_agent import SynthesisAgent
 from services.knowledge.qa_service import KnowledgeQAService
+
+logger = logging.getLogger(__name__)
 
 
 def _evidence_url(evidence):
@@ -54,12 +57,14 @@ class CompareOrchestrator:
             return AdvisoryBlock(has_data=False)
         try:
             return future.result()
-        except Exception:
+        except Exception as exc:
+            logger.warning("advisory branch failed in hybrid compare: %r", exc)
             return AdvisoryBlock(has_data=False)
 
     @staticmethod
     def _collect_knowledge(future) -> list:
         try:
             return future.result()
-        except Exception:
+        except Exception as exc:
+            logger.warning("knowledge branch failed in hybrid compare: %r", exc)
             return []

@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from ingestion.config.settings import KNOWLEDGE_QA_MIN_SCORE, KNOWLEDGE_QA_TOP_K
@@ -6,6 +7,8 @@ from services import build_default_gateway
 from services.inference.models import InferenceRequest
 from services.knowledge.models import Citation, KnowledgeQAResult
 from services.knowledge.repository import KnowledgeChunkRepository
+
+logger = logging.getLogger(__name__)
 
 KNOWLEDGE_QA_SYSTEM_PROMPT = """
 Bạn là trợ lý trả lời câu hỏi về thông tin tuyển sinh đại học Việt Nam,
@@ -66,7 +69,10 @@ class KnowledgeQAService:
                 )
             )
             data = result.parsed_data or {}
-        except Exception:
+        except Exception as exc:
+            # Degrade to no-data rather than crash, but surface the failure so a
+            # silent LLM/embedding outage doesn't look like "no knowledge".
+            logger.warning("knowledge QA generation failed: %r", exc)
             data = {}
 
         answer_text = str(data.get("answer") or "").strip()
