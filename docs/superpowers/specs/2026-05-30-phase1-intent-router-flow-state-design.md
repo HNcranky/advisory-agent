@@ -78,22 +78,22 @@ handle_user_message(session_token, content)
 │             └── LLM call riêng, JSON output, ~200ms
 │
 ├── 4a. route == ADVISORY_FLOW
-│       → profile extraction → merge → check missing_slots
-│       → update flow_state.pending_question nếu có follow-up
-│       → IF profile đủ: should_start_run=True (graph.invoke() như cũ)
+│       → profile extraction → merge → next_follow_up_question
+│       → IF có follow-up: set flow_state { active_flow=ADVISORY_FLOW, pending_question=<câu hỏi> }
+│       → IF profile đủ: clear pending_question, should_start_run=True (graph.invoke() như cũ)
 │
-├── 4b. route == KNOWLEDGE_QA
-│       → update flow_state { return_to_flow=True }
-│       → return fallback message
-│       → IF return_to_flow AND missing_slots: append pending_question
+├── 4b. route == KNOWLEDGE_QA (+ HYBRID fallback Phase 1)
+│       → return fallback message (HYBRID dùng chung vì đều cần dữ liệu knowledge)
+│       → KHÔNG mutate flow_state, KHÔNG đụng profile
+│       → IF đang dở advisory (active_flow + pending_question): append pending_question
 │
 ├── 4c. route == OUT_OF_SCOPE
 │       → return polite decline
-│       → IF return_to_flow AND missing_slots: append pending_question
+│       → IF đang dở advisory (active_flow + pending_question): append pending_question
 │
-└── 4d. route == CLARIFICATION (+ HYBRID fallback Phase 1)
+└── 4d. route == CLARIFICATION
         → return generic clarification request
-        → IF return_to_flow AND missing_slots: append pending_question
+        → IF đang dở advisory (active_flow + pending_question): append pending_question
 ```
 
 Advisory graph (`graph.invoke()`) **không thay đổi** — chỉ được gọi khi `ADVISORY_FLOW` + profile đủ.
@@ -119,26 +119,44 @@ class IntentResult(BaseModel):
         "program_overview", # tổng quan chương trình
     ]] = None
     school: Optional[str] = None   # resolved từ message hoặc profile_state.preferred_schools
-    return_to_flow: bool = False    # True nếu profile_state có dữ liệu (user đang mid-advisory-flow)
 ```
+
+> **Lưu ý:** "user có đang dở advisory flow không" KHÔNG nằm trong `IntentResult` — nó là trạng thái tất định suy ra từ `FlowState` (xem §2), tính ở `ConversationService` chứ không bắt LLM đoán.
 
 ### Class
 
+Tái dùng inference gateway sẵn có (giống `build_profile_with_gateway` trong `services/profile_inference_service.py`): gateway inject qua constructor (test không cần LLM thật), short-circuit khi `gateway.is_available()` false, và `classify()` bọc toàn bộ trong một `try/except Exception` nên không bao giờ raise.
+
 ```python
+from services import build_default_gateway
+from services.inference.models import InferenceRequest
+
+_FALLBACK = IntentResult(route="ADVISORY_FLOW")
+
 class IntentRouter:
-    def __init__(self, llm_call=None):
-        self._llm_call = llm_call or call_llm_json   # injectable để test
+    def __init__(self, gateway=None):
+        self._gateway = gateway or build_default_gateway()
 
     def classify(self, message: str, profile_state: ChatProfileState) -> IntentResult:
         try:
-            prompt = self._build_prompt(message, profile_state)
-            raw = self._llm_call(prompt)
-            return IntentResult.model_validate(raw)
+            if hasattr(self._gateway, "is_available") and not self._gateway.is_available():
+                return _FALLBACK
+            result = self._gateway.run(InferenceRequest(
+                agent_name="intent_router",
+                task_type="intent_classification",
+                system_prompt=INTENT_SYSTEM_PROMPT,
+                user_prompt=self._build_user_prompt(message, profile_state),
+                output_mode="json",
+                temperature=0.0,
+            ))
+            if not result.parsed_data:
+                return _FALLBACK
+            return IntentResult.model_validate(result.parsed_data)
         except Exception:
-            return IntentResult(route="ADVISORY_FLOW")  # safe fallback
+            return _FALLBACK  # safe fallback: LLM throw / non-JSON / route không hợp lệ
 
-    def _build_prompt(self, message: str, profile_state: ChatProfileState) -> dict:
-        ...
+    def _build_user_prompt(self, message: str, profile_state: ChatProfileState) -> str:
+        ...   # xem "User turn" bên dưới
 ```
 
 ### System prompt
@@ -171,10 +189,8 @@ Quy tắc resolve đại từ:
 
 Trường (school): chuẩn hóa thành tên viết tắt phổ biến (VNU-UET, HUST, NEU, ...) nếu nhận ra.
 
-return_to_flow: true nếu profile có bất kỳ dữ liệu nào (user đang trong luồng tư vấn dở chừng).
-
 Trả về JSON hợp lệ theo schema sau, không giải thích thêm:
-{"route": "...", "topic": "...", "school": "...", "return_to_flow": true/false}
+{"route": "...", "topic": "...", "school": "..."}
 ```
 
 ### User turn
@@ -187,7 +203,6 @@ Profile hiện tại:
 - Ngành quan tâm: {preferred_majors or "chưa có"}
 - Điểm số: {total_score or "chưa có"}
 - Khối thi: {subject_combination or "chưa có"}
-- return_to_flow: {true nếu bất kỳ field nào trong profile có giá trị, ngược lại false}
 ```
 
 ### Error handling
@@ -211,19 +226,22 @@ Không propagate exception ra ngoài `classify()`.
 ```python
 class FlowState(BaseModel):
     active_flow:      Optional[str] = None   # "ADVISORY_FLOW" khi đang trong luồng tư vấn
-    return_to_flow:   bool = False           # có advisory flow đang dở không
     pending_question: Optional[str] = None  # follow-up question cuối cùng đã hỏi user
 ```
+
+> **Bỏ `return_to_flow`:** "user có đang dở advisory flow không" suy được tất định từ `active_flow == "ADVISORY_FLOW" and pending_question is not None`. Giữ thêm một cờ riêng vừa thừa vừa gây bug off-by-one (cờ bị set *sau* khi đã build response). Toàn bộ logic re-ask dựa trực tiếp vào 2 field trên.
 
 ### Lifecycle
 
 | Sự kiện | Thay đổi FlowState |
 |---|---|
-| Session mới | `{}` — default (tất cả None/False) |
+| Session mới | `{}` — default (tất cả None) |
 | ADVISORY turn, trả follow-up question | `active_flow="ADVISORY_FLOW"`, `pending_question=<câu hỏi>` |
-| ADVISORY turn, profile đủ (run bắt đầu) | `active_flow="ADVISORY_FLOW"`, `return_to_flow=False`, `pending_question=None` |
-| KNOWLEDGE_QA hoặc OUT_OF_SCOPE turn | `return_to_flow=True` nếu `active_flow` đã set; giữ nguyên `pending_question` |
+| ADVISORY turn, profile đủ (run bắt đầu) | `active_flow="ADVISORY_FLOW"`, `pending_question=None` (clear) |
+| KNOWLEDGE_QA / OUT_OF_SCOPE / CLARIFICATION turn | **Không mutate** — chỉ đọc để quyết định có re-ask không |
 | Trả lời xong câu bên lề, user quay lại advisory | Handled bình thường bởi ADVISORY_FLOW branch |
+
+Vì câu detour không mutate flow state, `pending_question` đã được persist từ lượt advisory trước đó, nên re-ask xuất hiện **ngay từ câu bên lề đầu tiên** (sửa bug off-by-one).
 
 ---
 
@@ -245,19 +263,33 @@ Idempotent (`ADD COLUMN IF NOT EXISTS`). Không đụng đến column hiện có
 
 **Thêm vào** `services/chat/repository.py`:
 
+Bám đúng pattern hiện có của repository: tuple cursor (`row[0]`, không phải `row["..."]`), wrap JSONB bằng `self._jsonb(...)`, tự mở/commit/đóng connection. `FlowState(**dict)` giống cách `get_profile_state` dựng `ChatProfileState`.
+
 ```python
 def get_flow_state(self, session_token: str) -> FlowState:
-    row = self._execute_one(
+    conn = self.connection_factory()
+    cur = conn.cursor()
+    cur.execute(
         "SELECT flow_state_json FROM chat_sessions WHERE session_token = %s",
-        (session_token,)
+        (session_token,),
     )
-    return FlowState.model_validate(row["flow_state_json"] or {})
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not row:
+        return FlowState()
+    return FlowState(**(row[0] or {}))
 
 def update_flow_state(self, session_token: str, flow_state: FlowState) -> None:
-    self._execute(
-        "UPDATE chat_sessions SET flow_state_json = %s WHERE session_token = %s",
-        (flow_state.model_dump_json(), session_token)
+    conn = self.connection_factory()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE chat_sessions SET flow_state_json = %s, updated_at = NOW() WHERE session_token = %s",
+        (self._jsonb(flow_state), session_token),
     )
+    conn.commit()
+    cur.close()
+    conn.close()
 ```
 
 Không swallow exception — DB failure propagate lên caller.
@@ -279,58 +311,65 @@ class ConversationService:
 
     def handle_user_message(self, session_token: str, content: str) -> ConversationTurnResult:
         self.repository.append_message(session_token, "user", content, kind="user_message")
+        session       = self.repository.get_session_by_token(session_token)
         profile_state = self.repository.get_profile_state(session_token)
         flow_state    = self.repository.get_flow_state(session_token)
         intent        = self.intent_router.classify(content, profile_state)
 
         if intent.route == "ADVISORY_FLOW":
             return self._handle_advisory(session_token, content, profile_state, flow_state)
-        elif intent.route == "KNOWLEDGE_QA":
-            return self._handle_knowledge_qa(session_token, intent, flow_state)
-        elif intent.route == "OUT_OF_SCOPE":
-            return self._handle_out_of_scope(session_token, flow_state)
-        else:
-            # CLARIFICATION + HYBRID (Phase 1 fallback)
-            return self._handle_clarification(session_token, flow_state)
+        # HYBRID chưa implement orchestration → Phase 1 dùng chung knowledge fallback
+        # (câu vốn rõ ràng, trả "chưa có dữ liệu" hợp lý hơn đòi user clarify)
+        if intent.route in ("KNOWLEDGE_QA", "HYBRID"):
+            return self._handle_knowledge_qa(session_token, intent, profile_state, flow_state, session.status)
+        if intent.route == "OUT_OF_SCOPE":
+            return self._handle_out_of_scope(session_token, profile_state, flow_state, session.status)
+        return self._handle_clarification(session_token, profile_state, flow_state, session.status)
 
     # ----------------------------------------------------------------- private
 
     def _handle_advisory(self, session_token, content, profile_state, flow_state):
-        # Logic hiện tại giữ nguyên:
-        # extract_profile → merge → check missing_slots → follow-up or should_start_run
-
+        # Logic hiện tại giữ nguyên: extract → merge → next_follow_up_question → follow-up | run
         extracted = self.extract_profile(content)
         merged    = merge_profile_state(profile_state, extracted, content)
-        self.repository.update_profile_state(session_token, merged)
 
-        if merged.missing_slots:
-            follow_up = build_follow_up_question(merged)
-            new_flow = flow_state.model_copy(update={
-                "active_flow": "ADVISORY_FLOW",
-                "pending_question": follow_up,
-            })
-            self.repository.update_flow_state(session_token, new_flow)
+        follow_up = next_follow_up_question(merged)
+        if follow_up:
+            self.repository.update_profile_state(session_token, merged, "collecting_profile")
+            self.repository.update_flow_state(
+                session_token,
+                flow_state.model_copy(update={
+                    "active_flow": "ADVISORY_FLOW",
+                    "pending_question": follow_up,
+                }),
+            )
             self.repository.append_message(session_token, "assistant", follow_up, kind="assistant_follow_up")
             return ConversationTurnResult(
+                session_status="collecting_profile",
                 assistant_message=follow_up,
                 should_start_run=False,
                 profile_state=merged,
             )
-        else:
-            new_flow = flow_state.model_copy(update={
-                "active_flow": "ADVISORY_FLOW",
-                "return_to_flow": False,
-                "pending_question": None,
-            })
-            self.repository.update_flow_state(session_token, new_flow)
-            self.repository.update_session_status(session_token, "ready")
-            return ConversationTurnResult(
-                should_start_run=True,
-                profile_state=merged,
-            )
 
-    def _handle_knowledge_qa(self, session_token, intent, flow_state):
-        # Phase 1: chưa có RAG data → luôn trả fallback
+        ready_message = "Cảm ơn bạn. Mình đã có đủ thông tin và sẽ bắt đầu phân tích."
+        self.repository.update_profile_state(session_token, merged, "ready")
+        self.repository.update_flow_state(
+            session_token,
+            flow_state.model_copy(update={
+                "active_flow": "ADVISORY_FLOW",
+                "pending_question": None,   # clear: không còn câu chờ
+            }),
+        )
+        self.repository.append_message(session_token, "assistant", ready_message, kind="assistant_ready")
+        return ConversationTurnResult(
+            session_status="ready",
+            assistant_message=ready_message,
+            should_start_run=True,
+            profile_state=merged,
+        )
+
+    def _handle_knowledge_qa(self, session_token, intent, profile_state, flow_state, session_status):
+        # Phase 1: chưa có RAG data → luôn trả fallback. KHÔNG đụng profile, KHÔNG mutate flow_state.
         TOPIC_LABELS = {
             "tuition": "học phí", "curriculum": "chương trình học",
             "scholarship": "học bổng", "dormitory": "ký túc xá",
@@ -345,37 +384,51 @@ class ConversationService:
             f"Bạn có thể liên hệ trực tiếp nhà trường để biết thêm chi tiết."
         )
         response = self._append_return_prompt(fallback, flow_state)
-
-        if flow_state.active_flow == "ADVISORY_FLOW":
-            self.repository.update_flow_state(
-                session_token,
-                flow_state.model_copy(update={"return_to_flow": True})
-            )
-
         self.repository.append_message(session_token, "assistant", response, kind="assistant_result")
-        return ConversationTurnResult(assistant_message=response, should_start_run=False)
+        return ConversationTurnResult(
+            session_status=session_status,
+            assistant_message=response,
+            should_start_run=False,
+            profile_state=profile_state,
+        )
 
-    def _handle_out_of_scope(self, session_token, flow_state):
+    def _handle_out_of_scope(self, session_token, profile_state, flow_state, session_status):
         msg = (
             "Xin lỗi, câu hỏi này nằm ngoài phạm vi tư vấn tuyển sinh của mình. "
             "Mình chỉ có thể hỗ trợ các vấn đề liên quan đến tuyển sinh đại học."
         )
         response = self._append_return_prompt(msg, flow_state)
         self.repository.append_message(session_token, "assistant", response, kind="assistant_result")
-        return ConversationTurnResult(assistant_message=response, should_start_run=False)
+        return ConversationTurnResult(
+            session_status=session_status,
+            assistant_message=response,
+            should_start_run=False,
+            profile_state=profile_state,
+        )
 
-    def _handle_clarification(self, session_token, flow_state):
+    def _handle_clarification(self, session_token, profile_state, flow_state, session_status):
         msg = "Bạn có thể nói rõ hơn câu hỏi của mình không? Mình muốn hiểu đúng để hỗ trợ tốt hơn."
         response = self._append_return_prompt(msg, flow_state)
         self.repository.append_message(session_token, "assistant", response, kind="assistant_result")
-        return ConversationTurnResult(assistant_message=response, should_start_run=False)
+        return ConversationTurnResult(
+            session_status=session_status,
+            assistant_message=response,
+            should_start_run=False,
+            profile_state=profile_state,
+        )
 
     def _append_return_prompt(self, message: str, flow_state: FlowState) -> str:
-        """Nếu user đang dở advisory flow và có pending question → nhắc lại cuối response."""
-        if flow_state.return_to_flow and flow_state.pending_question:
+        """Nếu user đang dở advisory flow (active_flow + pending_question) → nhắc lại cuối response."""
+        if flow_state.active_flow == "ADVISORY_FLOW" and flow_state.pending_question:
             return f"{message}\n\nNhân tiện, {flow_state.pending_question}"
         return message
 ```
+
+> **Import bổ sung** (cùng module `conversation_service.py`):
+> `from services.chat.profile_state_service import merge_profile_state, next_follow_up_question`
+> `from services.chat.intent_router import IntentRouter`
+>
+> **Số DB write mỗi lượt advisory:** `update_profile_state` + `update_flow_state` là 2 transaction tách (mỗi repo method tự mở/đóng connection). Chấp nhận được ở Phase 1; nếu cần atomic sau này, gộp 2 update vào một câu lệnh `UPDATE ... SET profile_state_json=..., flow_state_json=..., status=...`.
 
 ---
 
@@ -384,7 +437,7 @@ class ConversationService:
 | Tình huống | Hành vi |
 |---|---|
 | `IntentRouter.classify()` throw | Đã tự catch bên trong, trả `ADVISORY_FLOW` |
-| `route="HYBRID"` (chưa implement) | Fallback `_handle_clarification()` |
+| `route="HYBRID"` (chưa implement) | Fallback `_handle_knowledge_qa()` — câu HYBRID rõ ràng, trả "chưa có dữ liệu" thay vì đòi clarify |
 | `get_flow_state()` DB lỗi | Propagate — không swallow |
 | `update_flow_state()` DB lỗi | Propagate — không swallow |
 | `school=null` trong KNOWLEDGE_QA | Label *"trường bạn hỏi"* |
@@ -442,14 +495,17 @@ class FakeIntentRouter:
 
 Cases:
 - Route ADVISORY_FLOW → `_handle_advisory` chạy, profile được update
-- Route KNOWLEDGE_QA → trả fallback message, profile **không bị reset**
+- Route KNOWLEDGE_QA → trả fallback message, profile **không bị reset**, flow_state **không bị mutate**
+- Route HYBRID → đi vào `_handle_knowledge_qa` (Phase 1 fallback), trả "chưa có dữ liệu"
 - Route OUT_OF_SCOPE → trả polite decline, profile **không bị reset**
 - Route CLARIFICATION → trả generic clarification
-- `return_to_flow=True` + `pending_question="Bạn học khối gì?"` → câu nhắc xuất hiện cuối response
-- `return_to_flow=True` + `pending_question=None` → không append gì thêm
+- `active_flow="ADVISORY_FLOW"` + `pending_question="Bạn học khối gì?"`, rẽ KNOWLEDGE_QA → câu nhắc xuất hiện cuối response **ngay câu detour đầu tiên** (regression test cho bug off-by-one)
+- `active_flow=None` (chưa vào advisory) + detour → KHÔNG append gì thêm
+- `pending_question=None` + detour → KHÔNG append gì thêm
 - `flow_state.pending_question` được lưu khi ADVISORY follow-up
-- `flow_state.pending_question` giữ nguyên khi rẽ KNOWLEDGE_QA
-- `flow_state` cleared (`return_to_flow=False`, `pending_question=None`) khi profile đủ
+- `flow_state.pending_question` giữ nguyên khi rẽ KNOWLEDGE_QA (detour không ghi flow_state)
+- `flow_state.pending_question` cleared (`=None`) khi profile đủ, `should_start_run=True`
+- Mọi branch off-topic trả `ConversationTurnResult` hợp lệ (đủ `session_status`, `assistant_message`, `profile_state`) — không raise ValidationError
 
 ### `tests/services/chat/test_repository.py` — mở rộng
 
@@ -464,7 +520,8 @@ Cases:
 - [ ] `"Em 25 điểm A00 nên chọn ngành gì?"` → route `ADVISORY_FLOW`, flow hiện tại không thay đổi
 - [ ] `"thời tiết hôm nay thế nào?"` → route `OUT_OF_SCOPE`, trả lời lịch sự
 - [ ] `KNOWLEDGE_QA` chưa có data → *"Hệ thống chưa có dữ liệu về [topic] của [trường], bạn có thể liên hệ trực tiếp nhà trường..."*
-- [ ] Sau trả lời câu bên lề, `return_to_flow=true` + `missing_slots` không rỗng → response kết thúc bằng pending follow-up question
-- [ ] Profile state của user **KHÔNG bị reset** khi route sang nhánh khác
+- [ ] Đang dở advisory (`active_flow="ADVISORY_FLOW"` + `pending_question` đã set) → **ngay câu bên lề đầu tiên**, response kết thúc bằng pending follow-up question
+- [ ] Profile state của user **KHÔNG bị reset** và flow_state **KHÔNG bị mutate** khi route sang nhánh off-topic
+- [ ] Mọi nhánh trả `ConversationTurnResult` đủ field bắt buộc (`session_status`, `assistant_message`, `profile_state`)
 - [ ] Unit test router ≥ 20 cases bao phủ 5 intent types
 - [ ] Migration idempotent — chạy lại không lỗi, không duplicate column
