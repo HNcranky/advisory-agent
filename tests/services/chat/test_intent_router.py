@@ -235,3 +235,73 @@ def test_classify_fallback_when_gateway_unavailable():
     """is_available() false → skip the LLM call entirely, return fallback."""
     result = _router(available=False, parsed_data={"route": "OUT_OF_SCOPE"}).classify("x", ChatProfileState())
     assert result.route == "ADVISORY_FLOW"
+
+
+# --- HYBRID schema (Phase 5a) ---
+
+def test_intent_result_hybrid_fields_default_empty():
+    result = IntentResult(route="ADVISORY_FLOW")
+    assert result.schools == []
+    assert result.topics == []
+    assert result.needs_advisory is False
+
+
+def test_intent_result_hybrid_full_payload():
+    result = IntentResult.model_validate({
+        "route": "HYBRID",
+        "schools": ["VNU-UET", "HUST"],
+        "topics": ["tuition", "curriculum"],
+        "needs_advisory": True,
+    })
+    assert result.route == "HYBRID"
+    assert result.schools == ["VNU-UET", "HUST"]
+    assert result.topics == ["tuition", "curriculum"]
+    assert result.needs_advisory is True
+
+
+def test_intent_result_hybrid_rejects_invalid_topic_in_list():
+    with pytest.raises(Exception):
+        IntentResult.model_validate({"route": "HYBRID", "topics": ["not_a_topic"]})
+
+
+def test_intent_result_singular_fields_still_work():
+    result = IntentResult(route="KNOWLEDGE_QA", topic="tuition", school="NEU")
+    assert result.topic == "tuition"
+    assert result.school == "NEU"
+    assert result.schools == []
+    assert result.topics == []
+
+
+# --- HYBRID classification + prompt wording (Phase 5a) ---
+
+def test_classify_hybrid_compare_scores_and_tuition():
+    r = _router(parsed_data={
+        "route": "HYBRID",
+        "schools": ["VNU-UET", "HUST"],
+        "topics": ["tuition"],
+        "needs_advisory": True,
+    })
+    result = r.classify("so sánh UET và HUST về điểm chuẩn lẫn học phí", ChatProfileState())
+    assert result.route == "HYBRID"
+    assert result.schools == ["VNU-UET", "HUST"]
+    assert result.topics == ["tuition"]
+    assert result.needs_advisory is True
+
+
+def test_classify_hybrid_pure_knowledge_comparison_sets_needs_advisory_false():
+    r = _router(parsed_data={
+        "route": "HYBRID",
+        "schools": ["VNU-UET", "HUST"],
+        "topics": ["tuition"],
+        "needs_advisory": False,
+    })
+    result = r.classify("so sánh học phí UET và HUST", ChatProfileState())
+    assert result.route == "HYBRID"
+    assert result.needs_advisory is False
+
+
+def test_intent_prompt_documents_hybrid_payload():
+    from services.chat.intent_router import INTENT_SYSTEM_PROMPT
+    assert "needs_advisory" in INTENT_SYSTEM_PROMPT
+    assert "schools" in INTENT_SYSTEM_PROMPT
+    assert "topics" in INTENT_SYSTEM_PROMPT

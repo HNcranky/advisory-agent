@@ -34,6 +34,13 @@ def build_default_gateway() -> LLMGateway:
                 "allow_fallback": True,
                 "fallback_model": "gemini-2.5-flash-lite",
             },
+            "synthesis_agent": {
+                "primary_model": "gemini-2.5-flash",
+                "output_mode": "free_text",
+                "max_retries": 1,
+                "allow_fallback": True,
+                "fallback_model": "gemini-2.5-flash-lite",
+            },
         },
     )
     return LLMGateway(registry=registry, telemetry=InferenceTelemetry())

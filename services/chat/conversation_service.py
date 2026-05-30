@@ -1,16 +1,23 @@
 from services import build_default_gateway
 from services.chat.intent_router import IntentRouter
 from services.chat.models import ConversationTurnResult
-from services.chat.profile_state_service import merge_profile_state, next_follow_up_question
+from services.chat.knowledge_fanout import format_knowledge_blocks, run_knowledge_fanout
+from services.chat.profile_state_service import (
+    merge_profile_state,
+    missing_critical_slots,
+    next_follow_up_question,
+)
 from services.chat.repository import ChatSessionRepository
+from services.knowledge.qa_service import KnowledgeQAService
 from services.profile_inference_service import build_profile_with_gateway
 
 
 class ConversationService:
-    def __init__(self, repository=None, extract_profile=None, intent_router=None):
+    def __init__(self, repository=None, extract_profile=None, intent_router=None, knowledge_qa=None):
         self.repository = repository or ChatSessionRepository()
         self.extract_profile = extract_profile or self._extract_profile
         self.intent_router = intent_router or IntentRouter()
+        self.knowledge_qa = knowledge_qa or KnowledgeQAService()
 
     def _extract_profile(self, text: str):
         gateway = build_default_gateway()
@@ -36,10 +43,10 @@ class ConversationService:
 
         if intent.route == "ADVISORY_FLOW":
             return self._handle_advisory(session_token, content, profile_state, flow_state)
-        # HYBRID has no orchestration in Phase 1 → reuse the knowledge fallback
-        # (the question is well-formed; "no data yet" beats asking to clarify).
-        if intent.route in ("KNOWLEDGE_QA", "HYBRID"):
-            return self._handle_knowledge_qa(session_token, intent, profile_state, flow_state, session_status)
+        if intent.route == "KNOWLEDGE_QA":
+            return self._handle_knowledge_qa(session_token, content, intent, profile_state, flow_state, session_status)
+        if intent.route == "HYBRID":
+            return self._handle_hybrid(session_token, content, intent, profile_state, flow_state, session_status)
         if intent.route == "OUT_OF_SCOPE":
             return self._handle_out_of_scope(session_token, profile_state, flow_state, session_status)
         return self._handle_clarification(session_token, profile_state, flow_state, session_status)
@@ -83,15 +90,79 @@ class ConversationService:
             profile_state=merged,
         )
 
-    def _handle_knowledge_qa(self, session_token, intent, profile_state, flow_state, session_status):
-        # Phase 1: no RAG data yet → always fallback. Do NOT touch profile or flow_state.
-        topic_label = self._TOPIC_LABELS.get(intent.topic or "", "thông tin này")
-        school_label = intent.school or "trường bạn hỏi"
-        fallback = (
-            f"Hệ thống chưa có dữ liệu về {topic_label} của {school_label}. "
-            f"Bạn có thể liên hệ trực tiếp nhà trường để biết thêm chi tiết."
+    def _handle_knowledge_qa(self, session_token, content, intent, profile_state, flow_state, session_status):
+        # Resolve school: router value first, else the student's top preferred school.
+        school = intent.school or (
+            profile_state.preferred_schools[0] if profile_state.preferred_schools else None
         )
-        response = self._append_return_prompt(fallback, flow_state)
+
+        result = None
+        try:
+            result = self.knowledge_qa.answer(
+                question=content,
+                school=school,
+                topic=intent.topic,
+                conversation_context="",
+            )
+        except Exception:
+            result = None  # any embed/LLM/DB failure → graceful fallback below
+
+        if result is not None and result.has_data and result.answer:
+            body = self._format_answer_with_sources(result.answer, result.citations)
+            citations = result.citations
+        else:
+            topic_label = self._TOPIC_LABELS.get(intent.topic or "", "thông tin này")
+            school_label = school or "trường bạn hỏi"
+            body = (
+                f"Hệ thống chưa có dữ liệu về {topic_label} của {school_label}. "
+                f"Bạn có thể liên hệ trực tiếp nhà trường để biết thêm chi tiết."
+            )
+            citations = []
+
+        response = self._append_return_prompt(body, flow_state)
+        self.repository.append_message(session_token, "assistant", response, "assistant_result")
+        return ConversationTurnResult(
+            session_status=session_status,
+            assistant_message=response,
+            should_start_run=False,
+            profile_state=profile_state,
+            citations=citations,
+        )
+
+    def _handle_hybrid(self, session_token, content, intent, profile_state, flow_state, session_status):
+        missing = missing_critical_slots(profile_state)
+
+        if not missing:
+            # Profile complete → dispatch an async hybrid run (advisory ∥ knowledge → synthesis).
+            placeholder = (
+                "Câu hỏi này cần đối chiếu cả dữ liệu tuyển sinh lẫn thông tin trường, "
+                "mình đang tổng hợp, bạn chờ một chút nhé."
+            )
+            self.repository.append_message(session_token, "assistant", placeholder, "assistant_hybrid_pending")
+            return ConversationTurnResult(
+                session_status=session_status,
+                assistant_message=placeholder,
+                should_start_run=True,
+                run_kind="hybrid",
+                hybrid_intent=intent.model_dump(),
+                profile_state=profile_state,
+            )
+
+        # Profile incomplete → answer the knowledge half inline, ask the next advisory follow-up.
+        school_fallback = profile_state.preferred_schools[0] if profile_state.preferred_schools else None
+        blocks = run_knowledge_fanout(self.knowledge_qa, intent, content, school_fallback)
+        body = format_knowledge_blocks(blocks)
+
+        follow_up = next_follow_up_question(profile_state.model_copy(update={"missing_slots": missing}))
+        response = f"{body}\n\nNhân tiện, {follow_up}" if follow_up else body
+
+        self.repository.update_flow_state(
+            session_token,
+            flow_state.model_copy(update={
+                "active_flow": "ADVISORY_FLOW",
+                "pending_question": follow_up,
+            }),
+        )
         self.repository.append_message(session_token, "assistant", response, "assistant_result")
         return ConversationTurnResult(
             session_status=session_status,
@@ -99,6 +170,17 @@ class ConversationService:
             should_start_run=False,
             profile_state=profile_state,
         )
+
+    @staticmethod
+    def _format_answer_with_sources(answer, citations):
+        urls = []
+        for citation in citations:
+            if citation.source_url and citation.source_url not in urls:
+                urls.append(citation.source_url)
+        if not urls:
+            return answer
+        sources = "\n".join(f"- {url}" for url in urls)
+        return f"{answer}\n\nNguồn:\n{sources}"
 
     def _handle_out_of_scope(self, session_token, profile_state, flow_state, session_status):
         msg = (

@@ -32,6 +32,15 @@ def merge_profile_state(current: ChatProfileState, extracted: StudentProfile, ra
     ]
     return merged
 
+def missing_critical_slots(state: ChatProfileState) -> list:
+    """Recompute the missing critical slots straight from the fields.
+
+    Independent of `state.missing_slots`, which may be empty/stale on a freshly
+    loaded profile.
+    """
+    return [slot for slot in CRITICAL_SLOT_ORDER if not getattr(state, slot)]
+
+
 def next_follow_up_question(state: ChatProfileState):
     prompts = {
         "admission_year": "Bạn đang xét tuyển cho năm nào?",

@@ -181,6 +181,58 @@ def test_create_session_endpoint_returns_snapshot(monkeypatch):
     assert body["messages"][0]["kind"] == "assistant_welcome"
 
 
+def test_post_message_dispatches_hybrid_run(monkeypatch):
+    from services.chat.models import ConversationTurnResult
+
+    client = TestClient(build_app())
+
+    class FakeRepository:
+        def create_run(self, session_token, profile_state):
+            return 55
+
+    class FakeService:
+        def __init__(self):
+            self.repository = FakeRepository()
+
+        def handle_user_message(self, session_token, content):
+            return ConversationTurnResult(
+                session_status="running",
+                assistant_message="đang tổng hợp",
+                should_start_run=True,
+                run_kind="hybrid",
+                hybrid_intent={"route": "HYBRID", "schools": ["VNU-UET", "HUST"],
+                               "topics": ["tuition"], "needs_advisory": True},
+                profile_state=ChatProfileState(
+                    admission_year=2026, total_score=27.0,
+                    preferred_majors=["computer_science"], location_preference="Ha Noi",
+                ),
+            )
+
+    captured = {}
+
+    class FakeHybridDispatcher:
+        def submit(self, session_token, run_id, content, profile_state, intent):
+            captured["run_id"] = run_id
+            captured["intent_schools"] = intent.schools
+            captured["content"] = content
+
+    class FailRunDispatcher:
+        def submit(self, **kwargs):
+            raise AssertionError("advisory dispatcher must not be used for a hybrid run")
+
+    monkeypatch.setattr("web.routes.chat_api.get_conversation_service", lambda: FakeService())
+    monkeypatch.setattr("web.routes.chat_api.get_hybrid_dispatcher", lambda: FakeHybridDispatcher())
+    monkeypatch.setattr("web.routes.chat_api.get_run_dispatcher", lambda: FailRunDispatcher())
+
+    response = client.post("/api/sessions/s/messages", json={"content": "so sánh UET và HUST"})
+
+    assert response.status_code == 200
+    assert response.json()["run_kind"] == "hybrid"
+    assert captured["run_id"] == 55
+    assert captured["intent_schools"] == ["VNU-UET", "HUST"]
+    assert captured["content"] == "so sánh UET và HUST"
+
+
 def test_get_session_endpoint_returns_404_when_missing(monkeypatch):
     client = TestClient(build_app())
 
