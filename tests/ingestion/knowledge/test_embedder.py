@@ -81,3 +81,21 @@ def test_embed_empty_list_makes_no_calls():
     emb = GeminiEmbedder(client=client, dim=2)
     assert emb.embed([]) == []
     assert client.models.calls == []
+
+
+def test_embed_passes_custom_task_type():
+    client = _FakeClient()
+    emb = GeminiEmbedder(client=client, dim=2)
+
+    emb.embed(["truy vấn"], task_type="RETRIEVAL_QUERY")
+
+    assert client.models.calls[0]["config"].task_type == "RETRIEVAL_QUERY"
+
+
+def test_embed_default_task_type_unchanged():
+    client = _FakeClient()
+    emb = GeminiEmbedder(client=client, dim=2)
+
+    emb.embed(["tài liệu"])
+
+    assert client.models.calls[0]["config"].task_type == "RETRIEVAL_DOCUMENT"

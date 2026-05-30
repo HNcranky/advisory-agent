@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class KnowledgeChunk(BaseModel):
@@ -26,3 +26,15 @@ class KnowledgeDocument(BaseModel):
     content_hash: str | None = None
     raw_text: str | None = None
     id: int | None = None
+
+
+class Citation(BaseModel):
+    source_url: str
+    chunk_text: str
+
+
+class KnowledgeQAResult(BaseModel):
+    has_data: bool
+    answer: str | None = None
+    citations: list[Citation] = Field(default_factory=list)
+    confidence: float = 0.0

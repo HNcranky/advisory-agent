@@ -62,6 +62,13 @@ GEMINI_EMBEDDING_MODEL = os.getenv(
 )
 EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", 768))
 
+# --- Knowledge QA retrieval (Phase 4) ------------------------------------
+# Top-K chunks pulled from pgvector before generation, and the minimum
+# cosine score (score = 1 - distance) the top chunk must clear. Below it the
+# QA service returns "no data" WITHOUT calling the LLM (zero-hallucination gate).
+KNOWLEDGE_QA_TOP_K = int(os.getenv("KNOWLEDGE_QA_TOP_K", 5))
+KNOWLEDGE_QA_MIN_SCORE = float(os.getenv("KNOWLEDGE_QA_MIN_SCORE", 0.5))
+
 # --- Knowledge chunking (Phase 3) ----------------------------------------
 # Structure-aware char window. ~1800 chars ≈ 512 tokens for Vietnamese.
 # Spans are character offsets → deterministic → stable idempotency key.

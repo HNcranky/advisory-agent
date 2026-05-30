@@ -38,7 +38,7 @@ class GeminiEmbedder:
             self._client = genai.Client(api_key=key)
         return self._client
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
+    def embed(self, texts: list[str], task_type: str = "RETRIEVAL_DOCUMENT") -> list[list[float]]:
         out: list[list[float]] = []
         for i in range(0, len(texts), self.batch_size):
             batch = texts[i:i + self.batch_size]
@@ -46,7 +46,7 @@ class GeminiEmbedder:
                 model=self.model,
                 contents=batch,
                 config=types.EmbedContentConfig(
-                    task_type="RETRIEVAL_DOCUMENT",
+                    task_type=task_type,
                     output_dimensionality=self.dim,
                 ),
             )
