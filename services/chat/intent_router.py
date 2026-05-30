@@ -12,7 +12,13 @@ logger = logging.getLogger(__name__)
 INTENT_SYSTEM_PROMPT = """
 Bạn là bộ phân loại intent cho hệ thống tư vấn tuyển sinh đại học Việt Nam.
 
-Phân loại tin nhắn của user vào đúng 1 trong 5 route:
+Phân loại tin nhắn của user vào đúng 1 trong 6 route:
+
+CONVERSATIONAL — chào hỏi, hỏi năng lực trợ lý, cảm ơn, tạm biệt, hỏi danh tính,
+  hoặc bộc lộ cảm xúc/lo lắng về tuyển sinh. Trả thêm "subtype":
+  GREETING | CAPABILITY | THANKS | GOODBYE | IDENTITY | EMOTIONAL_SUPPORT
+  Ví dụ: "xin chào", "bạn giúp được gì", "cảm ơn nhé", "tạm biệt", "bạn là ai",
+         "mình lo không đỗ đại học"
 
 ADVISORY_FLOW — câu hỏi tư vấn chọn ngành/trường dựa trên điểm số, nguyện vọng, khả năng đậu
   Ví dụ: "25 điểm A00 nên chọn trường nào", "em có đậu NEU không", "tư vấn ngành CNTT"
@@ -35,6 +41,23 @@ Quy tắc resolve đại từ:
 - "ngành này", "chuyên ngành đó" → dùng preferred_majors trong profile (nếu có)
 - Không thể resolve → để school/topic là null, route về CLARIFICATION
 
+Quy tắc ưu tiên CONVERSATIONAL vs CLARIFICATION:
+- KHÔNG ép lời chào / cảm ơn / câu hỏi năng lực vào CLARIFICATION.
+- CLARIFICATION chỉ khi đã hiểu user muốn gì nhưng thiếu entity bắt buộc;
+  khi đó trả thêm "missing_fields", ví dụ ["school"].
+- Nếu message vừa chào vừa có nhu cầu rõ ("Chào bạn, học phí UET?") → ưu tiên
+  KNOWLEDGE_QA/ADVISORY_FLOW, KHÔNG dừng ở greeting.
+
+Few-shot CONVERSATIONAL & CLARIFICATION:
+"Xin chào"            → {"route":"CONVERSATIONAL","subtype":"GREETING"}
+"Bạn giúp được gì?"   → {"route":"CONVERSATIONAL","subtype":"CAPABILITY"}
+"Cảm ơn nhé"          → {"route":"CONVERSATIONAL","subtype":"THANKS"}
+"Tạm biệt"            → {"route":"CONVERSATIONAL","subtype":"GOODBYE"}
+"Bạn là ai?"          → {"route":"CONVERSATIONAL","subtype":"IDENTITY"}
+"Mình lo không đỗ"    → {"route":"CONVERSATIONAL","subtype":"EMOTIONAL_SUPPORT"}
+"Học phí trường này?" (không có school trong profile)
+                      → {"route":"CLARIFICATION","missing_fields":["school"]}
+
 Chuẩn hóa tên trường thành viết tắt phổ biến nếu nhận ra: VNU-UET, HUST, NEU, VNU-HCMUS, UEH, FTU, ...
 
 Với route HYBRID, trả thêm các trường:
@@ -50,15 +73,30 @@ Ví dụ HYBRID:
 → {"route":"HYBRID","schools":["VNU-UET","HUST"],"topics":["tuition"],"needs_advisory":false}
 
 Trả về JSON hợp lệ, không giải thích thêm.
-Với các route khác (không phải HYBRID) chỉ cần:
+Với các route khác (không phải HYBRID và CONVERSATIONAL) chỉ cần:
 {"route": "...", "topic": "...", "school": "..."}
 """.strip()
 
 
 class IntentResult(BaseModel):
     route: Literal[
-        "ADVISORY_FLOW", "KNOWLEDGE_QA", "HYBRID", "CLARIFICATION", "OUT_OF_SCOPE"
+        "ADVISORY_FLOW",
+        "KNOWLEDGE_QA",
+        "HYBRID",
+        "CLARIFICATION",
+        "OUT_OF_SCOPE",
+        "CONVERSATIONAL",
     ]
+    subtype: Optional[
+        Literal[
+            "GREETING",
+            "CAPABILITY",
+            "THANKS",
+            "GOODBYE",
+            "IDENTITY",
+            "EMOTIONAL_SUPPORT",
+        ]
+    ] = None
     topic: Optional[
         Literal[
             "tuition",
@@ -71,6 +109,7 @@ class IntentResult(BaseModel):
         ]
     ] = None
     school: Optional[str] = None
+    missing_fields: List[str] = Field(default_factory=list)
     # HYBRID-only; default empty/false → no behavior change for other routes.
     schools: List[str] = Field(default_factory=list)
     topics: List[
