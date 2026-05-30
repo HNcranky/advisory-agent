@@ -1,4 +1,8 @@
+import logging
+
 from services.chat.hybrid_models import KnowledgeBlock
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_schools(intent, school_fallback):
@@ -31,7 +35,10 @@ def run_knowledge_fanout(knowledge_qa, intent, content, school_fallback=None) ->
                 result = knowledge_qa.answer(
                     question=content, school=school, topic=topic, conversation_context="",
                 )
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    "knowledge fan-out failed for school=%r topic=%r: %r", school, topic, exc
+                )
                 result = None
             if result is not None and result.has_data and result.answer:
                 sources = [c.source_url for c in result.citations if c.source_url]

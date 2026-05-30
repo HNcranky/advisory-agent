@@ -1,4 +1,5 @@
 import hashlib
+from contextlib import contextmanager
 
 from services.knowledge.db import get_knowledge_db_connection
 from services.knowledge.models import KnowledgeChunk, ScoredChunk, KnowledgeDocument
@@ -26,6 +27,25 @@ def _vector_literal(embedding):
     return "[" + ",".join(str(float(x)) for x in embedding) + "]"
 
 
+@contextmanager
+def _cursor(connection_factory, commit: bool = False):
+    """Yield a cursor, guaranteeing commit/rollback and connection cleanup."""
+    conn = connection_factory()
+    try:
+        cur = conn.cursor()
+        try:
+            yield cur
+            if commit:
+                conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+    finally:
+        conn.close()
+
+
 # SELECT column order shared by the read methods (id is selected separately).
 _CHUNK_COLUMNS = (
     "knowledge_document_id, school, program, year, document_type, "
@@ -38,44 +58,40 @@ class KnowledgeChunkRepository:
         self.connection_factory = connection_factory
 
     def upsert_chunk(self, chunk: KnowledgeChunk) -> int:
-        conn = self.connection_factory()
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO knowledge_chunks
-                (knowledge_document_id, school, program, year, document_type,
-                 topic, chunk_text, embedding, source_url, span_start, span_end)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s::vector, %s, %s, %s)
-            ON CONFLICT (source_url, span_start, span_end) DO UPDATE SET
-                knowledge_document_id = EXCLUDED.knowledge_document_id,
-                school        = EXCLUDED.school,
-                program       = EXCLUDED.program,
-                year          = EXCLUDED.year,
-                document_type = EXCLUDED.document_type,
-                topic         = EXCLUDED.topic,
-                chunk_text    = EXCLUDED.chunk_text,
-                embedding     = EXCLUDED.embedding,
-                ingested_at   = NOW()
-            RETURNING id
-            """,
-            (
-                chunk.knowledge_document_id,
-                chunk.school,
-                chunk.program,
-                chunk.year,
-                chunk.document_type,
-                chunk.topic,
-                chunk.chunk_text,
-                _vector_literal(chunk.embedding),
-                chunk.source_url,
-                chunk.span_start,
-                chunk.span_end,
-            ),
-        )
-        chunk_id = cur.fetchone()[0]
-        conn.commit()
-        cur.close()
-        conn.close()
+        with _cursor(self.connection_factory, commit=True) as cur:
+            cur.execute(
+                """
+                INSERT INTO knowledge_chunks
+                    (knowledge_document_id, school, program, year, document_type,
+                     topic, chunk_text, embedding, source_url, span_start, span_end)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s::vector, %s, %s, %s)
+                ON CONFLICT (source_url, span_start, span_end) DO UPDATE SET
+                    knowledge_document_id = EXCLUDED.knowledge_document_id,
+                    school        = EXCLUDED.school,
+                    program       = EXCLUDED.program,
+                    year          = EXCLUDED.year,
+                    document_type = EXCLUDED.document_type,
+                    topic         = EXCLUDED.topic,
+                    chunk_text    = EXCLUDED.chunk_text,
+                    embedding     = EXCLUDED.embedding,
+                    ingested_at   = NOW()
+                RETURNING id
+                """,
+                (
+                    chunk.knowledge_document_id,
+                    chunk.school,
+                    chunk.program,
+                    chunk.year,
+                    chunk.document_type,
+                    chunk.topic,
+                    chunk.chunk_text,
+                    _vector_literal(chunk.embedding),
+                    chunk.source_url,
+                    chunk.span_start,
+                    chunk.span_end,
+                ),
+            )
+            chunk_id = cur.fetchone()[0]
         return chunk_id
 
     @staticmethod
@@ -94,37 +110,28 @@ class KnowledgeChunkRepository:
         )
 
     def get_embedding_map_for_document(self, doc_id: int) -> dict[str, list[float]]:
-        conn = self.connection_factory()
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT chunk_text, embedding FROM knowledge_chunks "
-            "WHERE knowledge_document_id = %s AND embedding IS NOT NULL",
-            (doc_id,),
-        )
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+        with _cursor(self.connection_factory) as cur:
+            cur.execute(
+                "SELECT chunk_text, embedding FROM knowledge_chunks "
+                "WHERE knowledge_document_id = %s AND embedding IS NOT NULL",
+                (doc_id,),
+            )
+            rows = cur.fetchall()
         return {
             chunk_content_hash(chunk_text): _parse_vector(embedding)
             for chunk_text, embedding in rows
         }
 
     def delete_chunks_for_document(self, doc_id: int) -> int:
-        conn = self.connection_factory()
-        cur = conn.cursor()
-        cur.execute(
-            "DELETE FROM knowledge_chunks WHERE knowledge_document_id = %s",
-            (doc_id,),
-        )
-        deleted = cur.rowcount
-        conn.commit()
-        cur.close()
-        conn.close()
+        with _cursor(self.connection_factory, commit=True) as cur:
+            cur.execute(
+                "DELETE FROM knowledge_chunks WHERE knowledge_document_id = %s",
+                (doc_id,),
+            )
+            deleted = cur.rowcount
         return deleted
 
     def search_by_metadata(self, school, topic=None, limit=20):
-        conn = self.connection_factory()
-        cur = conn.cursor()
         sql = f"SELECT id, {_CHUNK_COLUMNS} FROM knowledge_chunks WHERE school = %s"
         params = [school]
         if topic is not None:
@@ -132,10 +139,9 @@ class KnowledgeChunkRepository:
             params.append(topic)
         sql += " ORDER BY id LIMIT %s"
         params.append(limit)
-        cur.execute(sql, tuple(params))
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+        with _cursor(self.connection_factory) as cur:
+            cur.execute(sql, tuple(params))
+            rows = cur.fetchall()
         return [self._row_to_chunk(row) for row in rows]
 
     @staticmethod
@@ -156,8 +162,6 @@ class KnowledgeChunkRepository:
 
     def vector_search(self, embedding, school=None, topic=None, limit=5):
         literal = _vector_literal(embedding)
-        conn = self.connection_factory()
-        cur = conn.cursor()
         sql = (
             f"SELECT id, {_CHUNK_COLUMNS}, "
             "1 - (embedding <=> %s::vector) AS score "
@@ -173,10 +177,9 @@ class KnowledgeChunkRepository:
         sql += " ORDER BY embedding <=> %s::vector LIMIT %s"
         params.append(literal)
         params.append(limit)
-        cur.execute(sql, tuple(params))
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+        with _cursor(self.connection_factory) as cur:
+            cur.execute(sql, tuple(params))
+            rows = cur.fetchall()
         return [self._row_to_scored(row) for row in rows]
 
 
@@ -185,16 +188,13 @@ class KnowledgeDocumentRepository:
         self.connection_factory = connection_factory
 
     def get_document_by_url(self, url: str) -> KnowledgeDocument | None:
-        conn = self.connection_factory()
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, school, document_type, source_url, content_hash, raw_text "
-            "FROM knowledge_documents WHERE source_url = %s",
-            (url,),
-        )
-        row = cur.fetchone()
-        cur.close()
-        conn.close()
+        with _cursor(self.connection_factory) as cur:
+            cur.execute(
+                "SELECT id, school, document_type, source_url, content_hash, raw_text "
+                "FROM knowledge_documents WHERE source_url = %s",
+                (url,),
+            )
+            row = cur.fetchone()
         if row is None:
             return None
         return KnowledgeDocument(
@@ -207,36 +207,28 @@ class KnowledgeDocumentRepository:
         )
 
     def get_or_create_document(self, doc: KnowledgeDocument) -> int:
-        conn = self.connection_factory()
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO knowledge_documents
-                (school, document_type, source_url, raw_text)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (source_url) DO UPDATE SET
-                school        = EXCLUDED.school,
-                document_type = EXCLUDED.document_type,
-                raw_text      = EXCLUDED.raw_text,
-                fetched_at    = NOW()
-            RETURNING id
-            """,
-            (doc.school, doc.document_type, doc.source_url, doc.raw_text),
-        )
-        doc_id = cur.fetchone()[0]
-        conn.commit()
-        cur.close()
-        conn.close()
+        with _cursor(self.connection_factory, commit=True) as cur:
+            cur.execute(
+                """
+                INSERT INTO knowledge_documents
+                    (school, document_type, source_url, raw_text)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (source_url) DO UPDATE SET
+                    school        = EXCLUDED.school,
+                    document_type = EXCLUDED.document_type,
+                    raw_text      = EXCLUDED.raw_text,
+                    fetched_at    = NOW()
+                RETURNING id
+                """,
+                (doc.school, doc.document_type, doc.source_url, doc.raw_text),
+            )
+            doc_id = cur.fetchone()[0]
         return doc_id
 
     def mark_ingested(self, doc_id: int, content_hash: str) -> None:
-        conn = self.connection_factory()
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE knowledge_documents "
-            "SET content_hash = %s, ingested_at = NOW() WHERE id = %s",
-            (content_hash, doc_id),
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
+        with _cursor(self.connection_factory, commit=True) as cur:
+            cur.execute(
+                "UPDATE knowledge_documents "
+                "SET content_hash = %s, ingested_at = NOW() WHERE id = %s",
+                (content_hash, doc_id),
+            )

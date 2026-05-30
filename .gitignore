@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project-specific secrets / scratch artifacts (never commit)
+github-recovery-codes.txt
+stats.txt
+*.recovery-codes.txt
+
+CLAUDE.md

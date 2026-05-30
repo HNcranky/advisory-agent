@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
@@ -19,9 +21,13 @@ def get_session_service():
 def get_conversation_service():
     return ConversationService()
 
+# Singletons: each holds a ThreadPoolExecutor. Building a new one per request
+# leaked worker threads on every message that started a run.
+@lru_cache(maxsize=1)
 def get_run_dispatcher():
     return RunDispatcher()
 
+@lru_cache(maxsize=1)
 def get_hybrid_dispatcher():
     return HybridDispatcher()
 
