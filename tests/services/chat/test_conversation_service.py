@@ -542,3 +542,88 @@ def test_clarification_falls_back_to_generic_when_no_missing_fields():
     )
     result = service.handle_user_message("tok", "ý bạn là gì")
     assert "rõ hơn" in result.assistant_message.lower()
+
+
+# ─── Answering a pending advisory follow-up (continue interrupted flow) ───────
+
+def test_answering_pending_advisory_question_continues_flow_despite_misroute():
+    """Reply that fills the pending slot must continue advisory, even if the
+    stateless intent classifier misreads the bare answer as small talk.
+
+    Repro of the reported bug: assistant asks "Bạn đang xét tuyển cho năm nào?",
+    user answers "mình đang xét tuyển cho năm 2026", but the router returns
+    CONVERSATIONAL/EMOTIONAL_SUPPORT, so admission_year was never extracted.
+    """
+    flow = FlowState(
+        active_flow="ADVISORY_FLOW",
+        pending_question="Bạn đang xét tuyển cho năm nào?",
+    )
+    service, repo = _make_service(
+        intent_result=IntentResult(route="CONVERSATIONAL", subtype="EMOTIONAL_SUPPORT"),
+        profile=ChatProfileState(),  # admission_year is the first missing slot
+        flow=flow,
+        extract=lambda text: StudentProfile(),  # year comes from the regex, not the LLM
+    )
+    result = service.handle_user_message("tok", "mình đang xét tuyển cho năm 2026")
+
+    # admission_year extracted and persisted
+    assert result.profile_state.admission_year == 2026
+    assert repo.profile_state.admission_year == 2026
+    # stayed in advisory flow: asked the next missing slot (total_score),
+    # not the empathetic conversational template
+    assert "Mình hiểu cảm giác lo lắng" not in result.assistant_message
+    assert "điểm" in result.assistant_message.lower()
+    assert repo.flow_state.active_flow == "ADVISORY_FLOW"
+
+
+def test_pending_advisory_answer_via_llm_extracted_slot_continues_flow():
+    """The continuation guard is slot-generic: an LLM-extracted slot (here the
+    major) that fills the pending slot also keeps the advisory flow going."""
+    flow = FlowState(
+        active_flow="ADVISORY_FLOW",
+        pending_question="Bạn quan tâm nhất đến ngành nào?",
+    )
+    service, repo = _make_service(
+        intent_result=IntentResult(route="CONVERSATIONAL", subtype="EMOTIONAL_SUPPORT"),
+        # year + score already known → preferred_majors is the first missing slot
+        profile=ChatProfileState(admission_year=2026, total_score=25.0),
+        flow=flow,
+        extract=lambda text: StudentProfile(preferred_majors=["computer_science"]),
+    )
+    result = service.handle_user_message("tok", "mình thích ngành CNTT")
+
+    assert "computer_science" in result.profile_state.preferred_majors
+    assert "Mình hiểu cảm giác lo lắng" not in result.assistant_message
+
+
+def test_interruption_during_pending_advisory_still_routes_to_knowledge():
+    """A genuine side-question that does NOT answer the pending slot must fall
+    through to the intent router (knowledge), not be swallowed by advisory."""
+    flow = FlowState(
+        active_flow="ADVISORY_FLOW",
+        pending_question="Bạn đang xét tuyển cho năm nào?",
+    )
+    service, repo = _make_service(
+        intent_result=IntentResult(route="KNOWLEDGE_QA", topic="tuition", school="VNU-UET"),
+        profile=ChatProfileState(),
+        flow=flow,
+        extract=lambda text: StudentProfile(),  # no critical slot filled
+    )
+    result = service.handle_user_message("tok", "à mà học phí UET thế nào?")
+
+    assert "học phí" in result.assistant_message       # knowledge fallback path
+    assert service.RESUME_OFFER in result.assistant_message  # mid-flow resume offer
+    assert result.profile_state.admission_year is None
+
+
+def test_no_continuation_guard_when_not_in_advisory_flow():
+    """With no active advisory flow, a year-like message is routed normally."""
+    service, repo = _make_service(
+        intent_result=IntentResult(route="CONVERSATIONAL", subtype="EMOTIONAL_SUPPORT"),
+        profile=ChatProfileState(),
+        flow=FlowState(),  # active_flow=None, no pending_question
+        extract=lambda text: StudentProfile(),
+    )
+    result = service.handle_user_message("tok", "mình lo cho kỳ thi năm 2026")
+    # routed as conversational; admission_year not silently extracted off-flow
+    assert "Mình hiểu cảm giác lo lắng" in result.assistant_message
