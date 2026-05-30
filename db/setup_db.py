@@ -108,6 +108,8 @@ def verify_tables():
     "chat_sessions",
     "chat_messages",
     "chat_advisory_runs",
+    "knowledge_documents",
+    "knowledge_chunks",
 ]
     for table in expected:
         status = "✅" if table in tables else "❌"
