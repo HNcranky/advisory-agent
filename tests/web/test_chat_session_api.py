@@ -1,7 +1,9 @@
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
 from services.chat.conversation_service import ConversationService
-from services.chat.models import ChatProfileState, ConversationTurnResult, ChatMessageRecord, ChatSessionSnapshot
+from services.chat.models import ChatProfileState, ConversationTurnResult, ChatMessageRecord, ChatSessionSnapshot, FlowState
 from web.app import build_app
 
 
@@ -85,17 +87,29 @@ def test_post_message_uses_fallback_extractor_when_gateway_is_unavailable(monkey
     class FakeRepository:
         def __init__(self):
             self.profile_state = ChatProfileState()
+            self.flow_state = FlowState()
             self.messages = []
+            self.status = "collecting_profile"
 
         def append_message(self, session_token, role, content, kind="chat"):
             self.messages.append((role, kind, content))
+
+        def get_session_by_token(self, session_token):
+            return SimpleNamespace(session_token=session_token, status=self.status)
 
         def get_profile_state(self, session_token):
             return self.profile_state
 
         def update_profile_state(self, session_token, profile_state, status):
             self.profile_state = profile_state
+            self.status = status
             return profile_state
+
+        def get_flow_state(self, session_token):
+            return self.flow_state
+
+        def update_flow_state(self, session_token, flow_state):
+            self.flow_state = flow_state
 
     class UnavailableGateway:
         def is_available(self):
@@ -106,6 +120,12 @@ def test_post_message_uses_fallback_extractor_when_gateway_is_unavailable(monkey
 
     monkeypatch.setattr(
         "services.chat.conversation_service.build_default_gateway",
+        lambda: UnavailableGateway(),
+    )
+    # Also patch the intent router's gateway so it falls back to ADVISORY_FLOW
+    # without making network calls.
+    monkeypatch.setattr(
+        "services.chat.intent_router.build_default_gateway",
         lambda: UnavailableGateway(),
     )
     monkeypatch.setattr(

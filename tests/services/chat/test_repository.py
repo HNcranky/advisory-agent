@@ -1,7 +1,18 @@
+from unittest.mock import MagicMock
+
 from psycopg2.extras import Json
 
-from services.chat.models import ChatProfileState
+from services.chat.models import ChatProfileState, FlowState
 from services.chat.repository import ChatSessionRepository
+
+
+def _make_conn(fetchone_return=None):
+    """Returns (conn, cursor) MagicMocks wired together. Cursor returns tuples (like psycopg2)."""
+    cursor = MagicMock()
+    cursor.fetchone.return_value = fetchone_return
+    conn = MagicMock()
+    conn.cursor.return_value = cursor
+    return conn, cursor
 
 
 class FakeCursor:
@@ -125,3 +136,100 @@ def test_get_run_status_returns_none_when_missing():
     repo = ChatSessionRepository(connection_factory=lambda: conn)
 
     assert repo.get_run_status(run_id=999) is None
+
+
+# --- get_flow_state ---
+
+def test_get_flow_state_returns_default_when_column_is_null():
+    conn, _ = _make_conn(fetchone_return=(None,))   # row exists, column value is NULL
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+
+    result = repo.get_flow_state("tok-1")
+
+    assert result == FlowState()
+    assert result.active_flow is None
+    assert result.pending_question is None
+
+
+def test_get_flow_state_returns_default_when_row_missing():
+    conn, _ = _make_conn(fetchone_return=None)   # no session row at all
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+
+    result = repo.get_flow_state("tok-1")
+
+    assert result == FlowState()
+
+
+def test_get_flow_state_returns_persisted_state():
+    saved = {"active_flow": "ADVISORY_FLOW", "pending_question": "Bạn học khối gì?"}
+    conn, _ = _make_conn(fetchone_return=(saved,))
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+
+    result = repo.get_flow_state("tok-1")
+
+    assert result.active_flow == "ADVISORY_FLOW"
+    assert result.pending_question == "Bạn học khối gì?"
+
+
+def test_get_flow_state_queries_correct_table_and_token():
+    conn, cursor = _make_conn(fetchone_return=(None,))
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+
+    repo.get_flow_state("my-token")
+
+    sql = cursor.execute.call_args[0][0]
+    params = cursor.execute.call_args[0][1]
+    assert "flow_state_json" in sql
+    assert "chat_sessions" in sql
+    assert params == ("my-token",)
+
+
+# --- update_flow_state ---
+
+def test_update_flow_state_executes_update_sql_and_commits():
+    conn, cursor = _make_conn()
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+    flow = FlowState(active_flow="ADVISORY_FLOW", pending_question="Q?")
+
+    repo.update_flow_state("tok-1", flow)
+
+    cursor.execute.assert_called_once()
+    sql = cursor.execute.call_args[0][0]
+    assert "flow_state_json" in sql
+    assert "chat_sessions" in sql
+    conn.commit.assert_called_once()
+
+
+def test_update_flow_state_wraps_value_with_jsonb_helper():
+    """Must use self._jsonb(...) like every other write, not a raw model_dump_json string."""
+    conn, cursor = _make_conn()
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+
+    repo.update_flow_state("tok-1", FlowState(active_flow="ADVISORY_FLOW"))
+
+    first_param = cursor.execute.call_args[0][1][0]
+    # psycopg2.extras.Json wraps the dict; its .adapted attribute holds the original value
+    assert getattr(first_param, "adapted", None) == {
+        "active_flow": "ADVISORY_FLOW",
+        "pending_question": None,
+    }
+
+
+def test_update_flow_state_passes_correct_session_token():
+    conn, cursor = _make_conn()
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+
+    repo.update_flow_state("specific-token", FlowState())
+
+    params = cursor.execute.call_args[0][1]
+    assert "specific-token" in params
+
+
+def test_update_flow_state_closes_connection():
+    conn, cursor = _make_conn()
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+
+    repo.update_flow_state("tok-1", FlowState())
+
+    assert cursor.close.called
+    assert conn.close.called
