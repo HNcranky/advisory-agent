@@ -62,7 +62,13 @@ GEMINI_EMBEDDING_MODEL = os.getenv(
 )
 EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", 768))
 
-                                                                  
+# --- Knowledge chunking (Phase 3) ----------------------------------------
+# Structure-aware char window. ~1800 chars ≈ 512 tokens for Vietnamese.
+# Spans are character offsets → deterministic → stable idempotency key.
+CHUNK_SIZE = int(os.getenv("KNOWLEDGE_CHUNK_SIZE", 1800))
+CHUNK_OVERLAP = int(os.getenv("KNOWLEDGE_CHUNK_OVERLAP", 256))
+
+
 FETCH_TIMEOUT = int(os.getenv("FETCH_TIMEOUT", 30))
 FETCH_MAX_RETRIES = int(os.getenv("FETCH_MAX_RETRIES", 3))
 FETCH_RETRY_BACKOFF = float(os.getenv("FETCH_RETRY_BACKOFF", 1.5))

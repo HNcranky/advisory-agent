@@ -17,3 +17,12 @@ class KnowledgeChunk(BaseModel):
 
 class ScoredChunk(KnowledgeChunk):
     score: float
+
+
+class KnowledgeDocument(BaseModel):
+    school: str
+    document_type: str
+    source_url: str
+    content_hash: str | None = None
+    raw_text: str | None = None
+    id: int | None = None
