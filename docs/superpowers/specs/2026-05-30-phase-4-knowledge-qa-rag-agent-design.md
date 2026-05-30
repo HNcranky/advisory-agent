@@ -26,7 +26,7 @@ No `KnowledgeQAService` exists yet. No reranker exists.
 
 1. **No separate reranker.** `vector_search`'s metadata pre-filter (school + topic) already enforces exactness before the cosine search, so a heuristic re-score is largely redundant and an LLM rerank spends latency/cost against the 5s p95 budget for marginal gain on a small corpus. Take pgvector's top-K and apply the threshold. Reranking is an isolated add-on later if precision proves bad.
 
-2. **Citations via LLM-marked usage with deterministic fallback.** The generation call returns JSON `{answer, used_source_ids}`; citations = the chunks the model says it used (deduped by `source_url`). On JSON parse-fail or empty `used_source_ids`, fall back to "all above-threshold chunks that were passed". This serves the core *no bịa* (no hallucination) value, reuses the system's reliable JSON-output infra (intent router, profile service), and stays robust.
+2. **Citations via LLM-marked usage with deterministic fallback.** The generation call returns JSON `{answer, used_source_ids}`; citations = the chunks the model says it used (deduped by `source_url`). When an answer is present but `used_source_ids` is empty/invalid, citations fall back to "all above-threshold chunks that were passed". When the generation produces *no usable answer text at all* (JSON structure failure / empty `answer`), the service degrades to the no-data fallback rather than fabricating. This serves the core *no bịa* (no hallucination) value, reuses the system's reliable JSON-output infra (intent router, profile service), and stays robust.
 
 3. **Threshold gate before the LLM.** If retrieval is empty or top score `< min_score`, return "no data" **without calling the LLM** — guarantees zero hallucination on weak retrieval and saves a round-trip.
 
@@ -120,8 +120,9 @@ Vietnamese system prompt instructs the model to: answer **only** from the number
 | Situation | Behavior |
 |---|---|
 | Retrieval empty or `confidence < min_score` | `has_data=False`, no LLM call, reuse existing fallback text |
-| Generation JSON parse-fail or empty `used_source_ids` | `has_data=True`; citations = all passed above-threshold chunks |
-| `embedder` / `gateway` / repository raises inside `answer()` | `ConversationService` catches → graceful "chưa có dữ liệu" fallback; chat never breaks |
+| Generation produces no usable answer text (JSON structure failure / empty `answer`) | `has_data=False` → reuse the no-data fallback; never fabricate |
+| Answer text present but `used_source_ids` empty/invalid | `has_data=True`; citations = all passed above-threshold chunks |
+| `embedder` / `gateway` / repository raises inside `answer()` | service catches the gateway error and degrades to `has_data=False`; `ConversationService` also wraps the call so a raised embed/DB error → graceful "chưa có dữ liệu" fallback; chat never breaks |
 | `intent.school` null and no `preferred_schools` | `school=None` → topic-only search; threshold gate still guards quality |
 
 ## Testing strategy
