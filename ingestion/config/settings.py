@@ -48,10 +48,19 @@ GEMINI_EXTRACTION_MODEL = os.getenv(
     "GEMINI_EXTRACTION_MODEL", "gemini-2.5-flash"
 )
 
-                              
+
 GEMINI_OCR_MODEL = os.getenv(
     "GEMINI_OCR_MODEL", "gemini-2.5-flash-lite"
 )
+
+# --- Embeddings (knowledge corpus / RAG) ---------------------------------
+# gemini-embedding-001 with Matryoshka truncation to 768 dims. Changing
+# EMBEDDING_DIM later requires re-embedding the whole corpus because the
+# knowledge_chunks.embedding column type is fixed to vector(EMBEDDING_DIM).
+GEMINI_EMBEDDING_MODEL = os.getenv(
+    "GEMINI_EMBEDDING_MODEL", "gemini-embedding-001"
+)
+EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", 768))
 
                                                                   
 FETCH_TIMEOUT = int(os.getenv("FETCH_TIMEOUT", 30))
