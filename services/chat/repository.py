@@ -2,7 +2,7 @@ from fastapi.encoders import jsonable_encoder
 from psycopg2.extras import Json
 
 from services.chat.db import get_db_connection
-from services.chat.models import ChatSessionRecord, ChatMessageRecord, ChatProfileState
+from services.chat.models import ChatSessionRecord, ChatMessageRecord, ChatProfileState, FlowState
 
 
 class ChatSessionRepository:
@@ -115,6 +115,35 @@ class ChatSessionRepository:
         session = self.get_session_by_token(session_token)
         return ChatProfileState(**session.profile_state_json) if session else ChatProfileState()
     
+    def get_flow_state(self, session_token: str) -> FlowState:
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT flow_state_json FROM chat_sessions WHERE session_token = %s",
+            (session_token,),
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not row:
+            return FlowState()
+        return FlowState(**(row[0] or {}))
+
+    def update_flow_state(self, session_token: str, flow_state: FlowState) -> None:
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE chat_sessions
+            SET flow_state_json = %s, updated_at = NOW()
+            WHERE session_token = %s
+            """,
+            (self._jsonb(flow_state), session_token),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+
     def update_profile_state(self, session_token: str, profile_state, status: str):
         conn = self.connection_factory()
         cur = conn.cursor()

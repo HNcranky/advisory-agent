@@ -32,6 +32,10 @@ class ChatProfileState(BaseModel):
     constraints: List[str] = Field(default_factory=list)
     missing_slots: List[str] = Field(default_factory=list)
     
+class FlowState(BaseModel):
+    active_flow: Optional[str] = None       # "ADVISORY_FLOW" khi đang trong luồng tư vấn
+    pending_question: Optional[str] = None  # follow-up question cuối cùng đã hỏi user
+
 class ConversationTurnResult(BaseModel):
     session_status: str
     assistant_message: str
