@@ -53,6 +53,16 @@ class ConversationService:
         session = self.repository.get_session_by_token(session_token)
         profile_state = self.repository.get_profile_state(session_token)
         flow_state = self.repository.get_flow_state(session_token)
+
+        # A reply to a pending advisory follow-up is an *answer*, not a fresh
+        # intent. Route it back into the advisory flow when it actually fills the
+        # slot we just asked about — the stateless intent classifier otherwise
+        # misreads a bare answer like "năm 2026" as small talk and silently drops
+        # the value. See docs/admission-advisory-conversational-architecture.md §4, §9.
+        continued = self._maybe_continue_advisory(session_token, content, profile_state, flow_state)
+        if continued is not None:
+            return continued
+
         intent = self.intent_router.classify(content, profile_state)
         session_status = session.status if session else "collecting_profile"
 
@@ -72,10 +82,36 @@ class ConversationService:
             session_token, intent, profile_state, flow_state, session_status
         )
 
+    def _maybe_continue_advisory(self, session_token, content, profile_state, flow_state):
+        """Treat a reply as the answer to a pending advisory follow-up.
+
+        Returns a ``ConversationTurnResult`` when the message actually fills the
+        slot we last asked about (so the advisory flow continues), otherwise
+        ``None`` so the caller falls through to normal intent routing — that path
+        still handles genuine mid-flow interruptions (e.g. a tuition question).
+        """
+        if flow_state.active_flow != "ADVISORY_FLOW" or not flow_state.pending_question:
+            return None
+        pending = missing_critical_slots(profile_state)
+        if not pending:
+            return None
+        pending_slot = pending[0]
+
+        extracted = self.extract_profile(content)
+        merged = merge_profile_state(profile_state, extracted, content)
+        answered = bool(getattr(merged, pending_slot)) and (
+            getattr(merged, pending_slot) != getattr(profile_state, pending_slot)
+        )
+        if not answered:
+            return None
+        return self._advance_advisory(session_token, merged, flow_state)
+
     def _handle_advisory(self, session_token, content, profile_state, flow_state):
         extracted = self.extract_profile(content)
         merged = merge_profile_state(profile_state, extracted, content)
+        return self._advance_advisory(session_token, merged, flow_state)
 
+    def _advance_advisory(self, session_token, merged, flow_state):
         follow_up = next_follow_up_question(merged)
         if follow_up:
             self.repository.update_profile_state(session_token, merged, "collecting_profile")
