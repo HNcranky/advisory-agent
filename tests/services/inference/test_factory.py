@@ -23,3 +23,12 @@ def test_knowledge_qa_agent_policy_uses_flash_with_json_and_fallback():
     assert policy.output_mode == "json"
     assert policy.allow_fallback is True
     assert policy.fallback_model == "gemini-2.5-flash-lite"
+
+
+def test_synthesis_agent_is_registered():
+    gateway = build_default_gateway()
+    policy = gateway.registry.resolve("synthesis_agent")
+    assert policy.primary_model == "gemini-2.5-flash"
+    assert policy.output_mode == "free_text"
+    assert policy.allow_fallback is True
+    assert policy.fallback_model == "gemini-2.5-flash-lite"

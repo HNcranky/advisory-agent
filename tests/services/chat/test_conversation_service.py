@@ -4,6 +4,7 @@ from agents.models import StudentProfile
 from services.chat.conversation_service import ConversationService
 from services.chat.models import ChatProfileState, FlowState
 from services.chat.intent_router import IntentResult
+from services.knowledge.models import Citation, KnowledgeQAResult
 
 
 class FakeRepository:
@@ -43,7 +44,22 @@ class FakeIntentRouter:
         return self._result
 
 
-def _make_service(intent_result=None, profile=None, flow=None, status=None, extract=None):
+class FakeKnowledgeQA:
+    def __init__(self, result=None, raise_exc=False):
+        self._result = result
+        self._raise = raise_exc
+        self.calls = []
+
+    def answer(self, question, school, topic, conversation_context=""):
+        self.calls.append({"question": question, "school": school, "topic": topic})
+        if self._raise:
+            raise RuntimeError("simulated knowledge-qa failure")
+        if self._result is not None:
+            return self._result
+        return KnowledgeQAResult(has_data=False, confidence=0.0)
+
+
+def _make_service(intent_result=None, profile=None, flow=None, status=None, extract=None, knowledge_qa=None):
     """Build a ConversationService backed by fakes. Returns (service, repo)."""
     repo = FakeRepository()
     if profile is not None:
@@ -57,6 +73,7 @@ def _make_service(intent_result=None, profile=None, flow=None, status=None, extr
         repository=repo,
         extract_profile=extract or (lambda text: StudentProfile()),
         intent_router=router,
+        knowledge_qa=knowledge_qa or FakeKnowledgeQA(),
     )
     return service, repo
 
@@ -333,4 +350,135 @@ def test_ac_profile_not_reset_on_side_query():
     result = service.handle_user_message("tok", "học phí UET bao nhiêu?")
     assert result.profile_state.total_score == 27.0
     assert result.profile_state.location_preference == "Ha Noi"
+    assert repo.profile_state.total_score == 27.0
+
+
+# ─── Phase 4: KnowledgeQA service wiring ─────────────────────────────────────
+
+def test_knowledge_qa_data_answer_is_surfaced_with_sources():
+    qa = FakeKnowledgeQA(result=KnowledgeQAResult(
+        has_data=True,
+        answer="Học phí khoảng 35 triệu/năm.",
+        citations=[Citation(source_url="https://uet/hoc-phi", chunk_text="Học phí 35 triệu")],
+        confidence=0.9,
+    ))
+    service, _ = _make_service(
+        intent_result=IntentResult(route="KNOWLEDGE_QA", topic="tuition", school="VNU-UET"),
+        knowledge_qa=qa,
+    )
+    result = service.handle_user_message("tok", "học phí UET bao nhiêu")
+    assert "35 triệu" in result.assistant_message
+    assert "Nguồn:" in result.assistant_message
+    assert "https://uet/hoc-phi" in result.assistant_message
+    assert len(result.citations) == 1
+    assert result.citations[0].source_url == "https://uet/hoc-phi"
+    assert result.should_start_run is False
+
+
+def test_knowledge_qa_data_answer_does_not_reset_profile_or_flow():
+    flow = FlowState(active_flow="ADVISORY_FLOW", pending_question="Bạn học khối gì?")
+    qa = FakeKnowledgeQA(result=KnowledgeQAResult(
+        has_data=True, answer="Học phí 35 triệu.", citations=[], confidence=0.9,
+    ))
+    service, repo = _make_service(
+        intent_result=IntentResult(route="KNOWLEDGE_QA", topic="tuition", school="VNU-UET"),
+        profile=ChatProfileState(total_score=25.0),
+        flow=flow,
+        knowledge_qa=qa,
+    )
+    result = service.handle_user_message("tok", "học phí UET bao nhiêu")
+    assert repo.flow_state == flow          # untouched
+    assert repo.profile_state.total_score == 25.0
+    assert "Nhân tiện" in result.assistant_message  # mid-flow re-ask still appended
+
+
+def test_knowledge_qa_resolves_school_from_preferred_schools_when_intent_school_null():
+    qa = FakeKnowledgeQA(result=KnowledgeQAResult(has_data=False))
+    service, _ = _make_service(
+        intent_result=IntentResult(route="KNOWLEDGE_QA", topic="tuition", school=None),
+        profile=ChatProfileState(preferred_schools=["VNU-UET"]),
+        knowledge_qa=qa,
+    )
+    service.handle_user_message("tok", "trường này học phí bao nhiêu")
+    assert qa.calls[0]["school"] == "VNU-UET"
+    assert qa.calls[0]["question"] == "trường này học phí bao nhiêu"
+
+
+def test_knowledge_qa_service_error_degrades_to_fallback():
+    qa = FakeKnowledgeQA(raise_exc=True)
+    service, _ = _make_service(
+        intent_result=IntentResult(route="KNOWLEDGE_QA", topic="tuition", school="VNU-UET"),
+        knowledge_qa=qa,
+    )
+    result = service.handle_user_message("tok", "học phí UET bao nhiêu")
+    assert "chưa có dữ liệu" in result.assistant_message
+    assert result.citations == []
+
+
+# ─── Phase 5d: HYBRID routing + profile gating ───────────────────────────────
+
+def _complete_profile():
+    return ChatProfileState(
+        admission_year=2026,
+        total_score=27.0,
+        preferred_majors=["computer_science"],
+        location_preference="Ha Noi",
+        preferred_schools=["VNU-UET", "HUST"],
+    )
+
+
+def test_hybrid_complete_profile_dispatches_hybrid_run():
+    service, repo = _make_service(
+        intent_result=IntentResult(
+            route="HYBRID", schools=["VNU-UET", "HUST"], topics=["tuition"], needs_advisory=True,
+        ),
+        profile=_complete_profile(),
+    )
+    result = service.handle_user_message("tok", "so sánh UET và HUST điểm chuẩn lẫn học phí")
+    assert result.should_start_run is True
+    assert result.run_kind == "hybrid"
+    assert result.hybrid_intent["route"] == "HYBRID"
+    assert result.hybrid_intent["schools"] == ["VNU-UET", "HUST"]
+    # a pending placeholder message was posted
+    assert repo.messages[-1][1] == "assistant_hybrid_pending"
+
+
+def test_hybrid_incomplete_profile_answers_knowledge_and_asks_follow_up():
+    qa = FakeKnowledgeQA(result=KnowledgeQAResult(
+        has_data=True, answer="Học phí UET ~35 triệu/năm.",
+        citations=[Citation(source_url="https://uet/hp", chunk_text="..")], confidence=0.9,
+    ))
+    service, repo = _make_service(
+        intent_result=IntentResult(route="HYBRID", schools=["VNU-UET"], topics=["tuition"], needs_advisory=True),
+        profile=ChatProfileState(preferred_majors=["computer_science"]),  # missing year/score/location
+        knowledge_qa=qa,
+    )
+    result = service.handle_user_message("tok", "so sánh học phí và điểm chuẩn UET")
+    assert result.should_start_run is False
+    assert "35 triệu" in result.assistant_message
+    assert "Nhân tiện" in result.assistant_message          # advisory follow-up appended
+    assert repo.flow_state.active_flow == "ADVISORY_FLOW"
+    assert repo.flow_state.pending_question                  # persisted for later re-ask
+
+
+def test_hybrid_incomplete_profile_no_knowledge_data_still_asks_follow_up():
+    service, repo = _make_service(
+        intent_result=IntentResult(route="HYBRID", schools=["VNU-UET"], topics=["tuition"], needs_advisory=True),
+        profile=ChatProfileState(),  # fully empty
+        knowledge_qa=FakeKnowledgeQA(),  # no data
+    )
+    result = service.handle_user_message("tok", "so sánh UET và HUST")
+    assert result.should_start_run is False
+    assert "chưa có dữ liệu" in result.assistant_message.lower()
+    assert "Nhân tiện" in result.assistant_message
+
+
+def test_hybrid_does_not_reset_profile():
+    profile = _complete_profile()
+    service, repo = _make_service(
+        intent_result=IntentResult(route="HYBRID", schools=["VNU-UET"], topics=["tuition"], needs_advisory=True),
+        profile=profile,
+    )
+    result = service.handle_user_message("tok", "so sánh UET và HUST")
+    assert result.profile_state.total_score == 27.0
     assert repo.profile_state.total_score == 27.0

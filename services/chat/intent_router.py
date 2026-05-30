@@ -1,6 +1,6 @@
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from services import build_default_gateway
 from services.chat.models import ChatProfileState
@@ -34,7 +34,20 @@ Quy tắc resolve đại từ:
 
 Chuẩn hóa tên trường thành viết tắt phổ biến nếu nhận ra: VNU-UET, HUST, NEU, VNU-HCMUS, UEH, FTU, ...
 
-Trả về JSON hợp lệ, không giải thích thêm:
+Với route HYBRID, trả thêm các trường:
+- "schools": danh sách trường cần so sánh, ví dụ ["VNU-UET", "HUST"]
+- "topics": danh sách chủ đề knowledge cần tra cứu, ví dụ ["tuition", "curriculum"]
+- "needs_advisory": true nếu câu hỏi cần dữ liệu điểm chuẩn / khả năng đậu;
+  false nếu chỉ so sánh thông tin thực tế (ví dụ chỉ học phí giữa các trường)
+
+Ví dụ HYBRID:
+"So sánh UET và HUST về điểm chuẩn lẫn học phí"
+→ {"route":"HYBRID","schools":["VNU-UET","HUST"],"topics":["tuition"],"needs_advisory":true}
+"So sánh học phí UET và HUST"
+→ {"route":"HYBRID","schools":["VNU-UET","HUST"],"topics":["tuition"],"needs_advisory":false}
+
+Trả về JSON hợp lệ, không giải thích thêm.
+Với các route khác (không phải HYBRID) chỉ cần:
 {"route": "...", "topic": "...", "school": "..."}
 """.strip()
 
@@ -55,6 +68,20 @@ class IntentResult(BaseModel):
         ]
     ] = None
     school: Optional[str] = None
+    # HYBRID-only; default empty/false → no behavior change for other routes.
+    schools: List[str] = Field(default_factory=list)
+    topics: List[
+        Literal[
+            "tuition",
+            "curriculum",
+            "scholarship",
+            "dormitory",
+            "career",
+            "admission_policy",
+            "program_overview",
+        ]
+    ] = Field(default_factory=list)
+    needs_advisory: bool = False
 
 
 _FALLBACK = IntentResult(route="ADVISORY_FLOW")
