@@ -2,18 +2,20 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add `FlowState` Pydantic model, DB migration for `flow_state_json` column, and two repository methods (`get_flow_state`, `update_flow_state`) — the storage foundation for Phase 1 routing.
+**Goal:** Add the `FlowState` Pydantic model, a DB migration for the `flow_state_json` column, and two repository methods (`get_flow_state`, `update_flow_state`) — the storage foundation for Phase 1 routing.
 
-**Architecture:** `FlowState` lives in `services/chat/models.py` alongside `ChatProfileState`. A new JSONB column `flow_state_json` is added to `chat_sessions` via an idempotent migration. Two methods are added to `ChatSessionRepository` following the exact same psycopg2 pattern used by `get_profile_state` / `update_profile_state`.
+**Architecture:** `FlowState` lives in `services/chat/models.py` next to `ChatProfileState`. It has exactly two fields — `active_flow` and `pending_question` — because "is the user mid-advisory-flow?" is derived from those two (`active_flow == "ADVISORY_FLOW" and pending_question is not None`), not stored as a separate flag. A new JSONB column `flow_state_json` is added to `chat_sessions` via an idempotent migration. Two methods are added to `ChatSessionRepository` following the exact psycopg2 tuple-cursor pattern already used by `get_profile_state` / `update_profile_state` (raw `conn.cursor()`, `row[0]`, `self._jsonb(...)`, commit/close).
 
 **Tech Stack:** Python 3.11, Pydantic v2, psycopg2, PostgreSQL, pytest, unittest.mock
+
+**Spec:** `docs/superpowers/specs/2026-05-30-phase1-intent-router-flow-state-design.md` (§2 FlowState, §3 Migration, §4 Repository)
 
 ---
 
 ### Task 1: FlowState Pydantic Model
 
 **Files:**
-- Modify: `services/chat/models.py`
+- Modify: `services/chat/models.py` (add class after `ChatProfileState`, line 33)
 - Test: `tests/services/chat/test_flow_state_model.py`
 
 - [ ] **Step 1: Create test file and write failing tests**
@@ -21,14 +23,12 @@
 Create `tests/services/chat/test_flow_state_model.py`:
 
 ```python
-import pytest
 from services.chat.models import FlowState
 
 
 def test_flow_state_defaults():
     state = FlowState()
     assert state.active_flow is None
-    assert state.return_to_flow is False
     assert state.pending_question is None
 
 
@@ -40,63 +40,62 @@ def test_flow_state_model_validate_from_empty_dict():
 def test_flow_state_model_validate_from_full_dict():
     state = FlowState.model_validate({
         "active_flow": "ADVISORY_FLOW",
-        "return_to_flow": True,
         "pending_question": "Bạn học khối gì?",
     })
     assert state.active_flow == "ADVISORY_FLOW"
-    assert state.return_to_flow is True
     assert state.pending_question == "Bạn học khối gì?"
 
 
-def test_flow_state_model_copy_update():
+def test_flow_state_model_copy_update_does_not_mutate_original():
     original = FlowState(active_flow="ADVISORY_FLOW")
-    updated = original.model_copy(update={"return_to_flow": True, "pending_question": "Q?"})
+    updated = original.model_copy(update={"pending_question": "Q?"})
     assert updated.active_flow == "ADVISORY_FLOW"
-    assert updated.return_to_flow is True
     assert updated.pending_question == "Q?"
-    # original unchanged
-    assert original.return_to_flow is False
     assert original.pending_question is None
 
 
+def test_flow_state_ignores_legacy_return_to_flow_key():
+    """Old rows may still contain return_to_flow; it must be ignored, not raise."""
+    state = FlowState.model_validate({
+        "active_flow": "ADVISORY_FLOW",
+        "pending_question": "Q?",
+        "return_to_flow": True,
+    })
+    assert state.active_flow == "ADVISORY_FLOW"
+    assert not hasattr(state, "return_to_flow")
+
+
 def test_flow_state_equality():
-    a = FlowState(active_flow="ADVISORY_FLOW", return_to_flow=True)
-    b = FlowState(active_flow="ADVISORY_FLOW", return_to_flow=True)
+    a = FlowState(active_flow="ADVISORY_FLOW", pending_question="Q?")
+    b = FlowState(active_flow="ADVISORY_FLOW", pending_question="Q?")
     assert a == b
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-```
-pytest tests/services/chat/test_flow_state_model.py -v
-```
-
+Run: `pytest tests/services/chat/test_flow_state_model.py -v`
 Expected: `ImportError: cannot import name 'FlowState' from 'services.chat.models'`
 
 - [ ] **Step 3: Add FlowState to models.py**
 
-Open `services/chat/models.py`. After the `ChatProfileState` class (line 33), add:
+Open `services/chat/models.py`. After the `ChatProfileState` class (ends at line 33), add:
 
 ```python
 class FlowState(BaseModel):
-    active_flow: Optional[str] = None
-    return_to_flow: bool = False
-    pending_question: Optional[str] = None
+    active_flow: Optional[str] = None       # "ADVISORY_FLOW" khi đang trong luồng tư vấn
+    pending_question: Optional[str] = None  # follow-up question cuối cùng đã hỏi user
 ```
 
-The top of `models.py` already imports `Optional` — no new imports needed.
+`Optional` is already imported at the top of `models.py` (line 1) — no new imports needed. Pydantic v2 `BaseModel` ignores unknown keys by default, so legacy `return_to_flow` in old JSON is dropped silently (covered by the test above).
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-```
-pytest tests/services/chat/test_flow_state_model.py -v
-```
-
-Expected: 5 passed
+Run: `pytest tests/services/chat/test_flow_state_model.py -v`
+Expected: 6 passed
 
 - [ ] **Step 5: Commit**
 
-```
+```bash
 git add services/chat/models.py tests/services/chat/test_flow_state_model.py
 git commit -m "feat: add FlowState model to services/chat/models"
 ```
@@ -119,28 +118,25 @@ ALTER TABLE chat_sessions
     ADD COLUMN IF NOT EXISTS flow_state_json JSONB NOT NULL DEFAULT '{}';
 ```
 
-- [ ] **Step 2: Verify migration is idempotent**
+`012` is the next number — the highest existing migration is `011_advisory_trace_events.sql`.
 
-Run against your local DB twice:
+- [ ] **Step 2: Apply the migration twice to prove idempotency**
 
-```
+Run:
+```bash
 psql $DATABASE_URL -f db/migrations/012_flow_state.sql
 psql $DATABASE_URL -f db/migrations/012_flow_state.sql
 ```
+Expected: No error on the second run (`ADD COLUMN IF NOT EXISTS` is a no-op when the column exists).
 
-Expected: No error on second run (`ADD COLUMN IF NOT EXISTS` is idempotent).
+- [ ] **Step 3: Verify the column exists with the right type and default**
 
-- [ ] **Step 3: Verify column exists**
-
-```
-psql $DATABASE_URL -c "\d chat_sessions"
-```
-
-Expected: `flow_state_json` column appears with type `jsonb` and default `'{}'`.
+Run: `psql $DATABASE_URL -c "\d chat_sessions"`
+Expected: a `flow_state_json` row of type `jsonb`, `not null`, default `'{}'::jsonb`.
 
 - [ ] **Step 4: Commit**
 
-```
+```bash
 git add db/migrations/012_flow_state.sql
 git commit -m "feat: add flow_state_json column to chat_sessions"
 ```
@@ -150,22 +146,22 @@ git commit -m "feat: add flow_state_json column to chat_sessions"
 ### Task 3: Repository — get_flow_state
 
 **Files:**
-- Modify: `services/chat/repository.py`
+- Modify: `services/chat/repository.py` (import line 5; new method after `get_profile_state`, line 116)
 - Test: `tests/services/chat/test_repository.py`
 
-- [ ] **Step 1: Create test file and write failing test**
+- [ ] **Step 1: Create test file and write failing tests**
 
 Create `tests/services/chat/test_repository.py`:
 
 ```python
 from unittest.mock import MagicMock
-import pytest
+
 from services.chat.repository import ChatSessionRepository
 from services.chat.models import FlowState
 
 
 def _make_conn(fetchone_return=None):
-    """Returns (conn, cursor) mocks wired together."""
+    """Returns (conn, cursor) MagicMocks wired together. Cursor returns tuples (like psycopg2)."""
     cursor = MagicMock()
     cursor.fetchone.return_value = fetchone_return
     conn = MagicMock()
@@ -174,19 +170,18 @@ def _make_conn(fetchone_return=None):
 
 
 def test_get_flow_state_returns_default_when_column_is_null():
-    conn, cursor = _make_conn(fetchone_return=(None,))
+    conn, _ = _make_conn(fetchone_return=(None,))   # row exists, column value is NULL
     repo = ChatSessionRepository(connection_factory=lambda: conn)
 
     result = repo.get_flow_state("tok-1")
 
     assert result == FlowState()
     assert result.active_flow is None
-    assert result.return_to_flow is False
     assert result.pending_question is None
 
 
 def test_get_flow_state_returns_default_when_row_missing():
-    conn, cursor = _make_conn(fetchone_return=None)
+    conn, _ = _make_conn(fetchone_return=None)   # no session row at all
     repo = ChatSessionRepository(connection_factory=lambda: conn)
 
     result = repo.get_flow_state("tok-1")
@@ -195,18 +190,13 @@ def test_get_flow_state_returns_default_when_row_missing():
 
 
 def test_get_flow_state_returns_persisted_state():
-    saved = {
-        "active_flow": "ADVISORY_FLOW",
-        "return_to_flow": True,
-        "pending_question": "Bạn học khối gì?",
-    }
-    conn, cursor = _make_conn(fetchone_return=(saved,))
+    saved = {"active_flow": "ADVISORY_FLOW", "pending_question": "Bạn học khối gì?"}
+    conn, _ = _make_conn(fetchone_return=(saved,))
     repo = ChatSessionRepository(connection_factory=lambda: conn)
 
     result = repo.get_flow_state("tok-1")
 
     assert result.active_flow == "ADVISORY_FLOW"
-    assert result.return_to_flow is True
     assert result.pending_question == "Bạn học khối gì?"
 
 
@@ -225,47 +215,45 @@ def test_get_flow_state_queries_correct_table_and_token():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-```
-pytest tests/services/chat/test_repository.py -v
-```
-
+Run: `pytest tests/services/chat/test_repository.py -v`
 Expected: `AttributeError: 'ChatSessionRepository' object has no attribute 'get_flow_state'`
 
-- [ ] **Step 3: Add get_flow_state to repository.py**
+- [ ] **Step 3: Add the import and get_flow_state to repository.py**
 
-Open `services/chat/repository.py`. Add this import at the top (after existing imports):
+Open `services/chat/repository.py`. Change the model import on line 5 to add `FlowState`:
 
 ```python
 from services.chat.models import ChatSessionRecord, ChatMessageRecord, ChatProfileState, FlowState
 ```
 
-Then add `get_flow_state` after the `get_profile_state` method (after line 116):
+Then add `get_flow_state` immediately after `get_profile_state` (after line 116):
 
 ```python
-def get_flow_state(self, session_token: str) -> FlowState:
-    conn = self.connection_factory()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT flow_state_json FROM chat_sessions WHERE session_token = %s",
-        (session_token,),
-    )
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
-    return FlowState.model_validate(row[0] or {} if row else {})
+    def get_flow_state(self, session_token: str) -> FlowState:
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT flow_state_json FROM chat_sessions WHERE session_token = %s",
+            (session_token,),
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not row:
+            return FlowState()
+        return FlowState(**(row[0] or {}))
 ```
+
+This mirrors `get_profile_state`'s tuple-cursor style (`row[0]`, not `row["..."]`) and `ChatProfileState(**...)` construction.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-```
-pytest tests/services/chat/test_repository.py -v
-```
-
+Run: `pytest tests/services/chat/test_repository.py -v`
 Expected: 4 passed
 
 - [ ] **Step 5: Commit**
 
-```
+```bash
 git add services/chat/repository.py tests/services/chat/test_repository.py
 git commit -m "feat: add get_flow_state to ChatSessionRepository"
 ```
@@ -275,7 +263,7 @@ git commit -m "feat: add get_flow_state to ChatSessionRepository"
 ### Task 4: Repository — update_flow_state
 
 **Files:**
-- Modify: `services/chat/repository.py`
+- Modify: `services/chat/repository.py` (new method after `get_flow_state`)
 - Test: `tests/services/chat/test_repository.py` (extend)
 
 - [ ] **Step 1: Add failing tests**
@@ -283,10 +271,10 @@ git commit -m "feat: add get_flow_state to ChatSessionRepository"
 Append to `tests/services/chat/test_repository.py`:
 
 ```python
-def test_update_flow_state_executes_update_sql():
+def test_update_flow_state_executes_update_sql_and_commits():
     conn, cursor = _make_conn()
     repo = ChatSessionRepository(connection_factory=lambda: conn)
-    flow = FlowState(active_flow="ADVISORY_FLOW", return_to_flow=True, pending_question="Q?")
+    flow = FlowState(active_flow="ADVISORY_FLOW", pending_question="Q?")
 
     repo.update_flow_state("tok-1", flow)
 
@@ -297,12 +285,26 @@ def test_update_flow_state_executes_update_sql():
     conn.commit.assert_called_once()
 
 
+def test_update_flow_state_wraps_value_with_jsonb_helper():
+    """Must use self._jsonb(...) like every other write, not a raw model_dump_json string."""
+    conn, cursor = _make_conn()
+    repo = ChatSessionRepository(connection_factory=lambda: conn)
+
+    repo.update_flow_state("tok-1", FlowState(active_flow="ADVISORY_FLOW"))
+
+    first_param = cursor.execute.call_args[0][1][0]
+    # psycopg2.extras.Json wraps the dict; its .adapted attribute holds the original value
+    assert getattr(first_param, "adapted", None) == {
+        "active_flow": "ADVISORY_FLOW",
+        "pending_question": None,
+    }
+
+
 def test_update_flow_state_passes_correct_session_token():
     conn, cursor = _make_conn()
     repo = ChatSessionRepository(connection_factory=lambda: conn)
-    flow = FlowState()
 
-    repo.update_flow_state("specific-token", flow)
+    repo.update_flow_state("specific-token", FlowState())
 
     params = cursor.execute.call_args[0][1]
     assert "specific-token" in params
@@ -314,60 +316,62 @@ def test_update_flow_state_closes_connection():
 
     repo.update_flow_state("tok-1", FlowState())
 
-    cur_close_called = cursor.close.called
-    conn_close_called = conn.close.called
-    assert cur_close_called
-    assert conn_close_called
+    assert cursor.close.called
+    assert conn.close.called
 ```
 
 - [ ] **Step 2: Run new tests to verify they fail**
 
-```
-pytest tests/services/chat/test_repository.py::test_update_flow_state_executes_update_sql -v
-```
-
+Run: `pytest tests/services/chat/test_repository.py::test_update_flow_state_executes_update_sql_and_commits -v`
 Expected: `AttributeError: 'ChatSessionRepository' object has no attribute 'update_flow_state'`
 
 - [ ] **Step 3: Add update_flow_state to repository.py**
 
-Add this method after `get_flow_state`:
+Add this method immediately after `get_flow_state`:
 
 ```python
-def update_flow_state(self, session_token: str, flow_state: FlowState) -> None:
-    conn = self.connection_factory()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        UPDATE chat_sessions
-        SET flow_state_json = %s, updated_at = NOW()
-        WHERE session_token = %s
-        """,
-        (self._jsonb(flow_state), session_token),
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
+    def update_flow_state(self, session_token: str, flow_state: FlowState) -> None:
+        conn = self.connection_factory()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            UPDATE chat_sessions
+            SET flow_state_json = %s, updated_at = NOW()
+            WHERE session_token = %s
+            """,
+            (self._jsonb(flow_state), session_token),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
 ```
+
+`self._jsonb` (defined at line 12) wraps `jsonable_encoder(value)` in `psycopg2.extras.Json` — same as `update_profile_state`. DB failures propagate (no try/except), per spec §4.
 
 - [ ] **Step 4: Run all repository tests**
 
-```
-pytest tests/services/chat/test_repository.py -v
-```
+Run: `pytest tests/services/chat/test_repository.py -v`
+Expected: 8 passed
 
-Expected: 7 passed
+- [ ] **Step 5: Run the full suite to check for regressions**
 
-- [ ] **Step 5: Run full test suite to check for regressions**
-
-```
-pytest --tb=short -q
-```
-
+Run: `pytest --tb=short -q`
 Expected: all existing tests still pass
 
 - [ ] **Step 6: Commit**
 
-```
+```bash
 git add services/chat/repository.py tests/services/chat/test_repository.py
 git commit -m "feat: add update_flow_state to ChatSessionRepository"
 ```
+
+---
+
+## Plan 1 done — exit criteria
+
+- `FlowState` importable from `services.chat.models` with two fields, ignores legacy `return_to_flow`.
+- Migration `012_flow_state.sql` applies idempotently; `flow_state_json JSONB NOT NULL DEFAULT '{}'` exists.
+- `repo.get_flow_state` / `repo.update_flow_state` round-trip via the tuple-cursor + `_jsonb` pattern.
+- 14 new tests pass (6 model + 8 repository); no regressions.
+
+**Next:** Plan 2 (IntentRouter) depends on `FlowState` and `ChatProfileState` being available.

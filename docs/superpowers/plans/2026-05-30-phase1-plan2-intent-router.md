@@ -2,17 +2,19 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `IntentRouter` — a self-contained service that classifies user messages into one of 5 routes (`ADVISORY_FLOW`, `KNOWLEDGE_QA`, `CLARIFICATION`, `OUT_OF_SCOPE`, `HYBRID`) using a single LLM call, with guaranteed safe fallback on any failure.
+**Goal:** Build `IntentRouter` — a self-contained service that classifies a user message into one of 5 routes (`ADVISORY_FLOW`, `KNOWLEDGE_QA`, `HYBRID`, `CLARIFICATION`, `OUT_OF_SCOPE`) via a single LLM call, with a guaranteed `ADVISORY_FLOW` fallback on any failure.
 
-**Architecture:** `IntentResult` and `IntentRouter` live in `services/chat/intent_router.py`. `IntentRouter` follows the same gateway-injection pattern as `build_profile_with_gateway` in `profile_inference_service.py`: gateway is injected in constructor, enabling unit tests without any real LLM calls. All exceptions are caught internally — `classify()` never raises.
+**Architecture:** `IntentResult` and `IntentRouter` live in `services/chat/intent_router.py`. `IntentRouter` follows the exact gateway-injection pattern of `build_profile_with_gateway` in `services/profile_inference_service.py`: the gateway is injected in the constructor, it short-circuits to fallback when `gateway.is_available()` is false, and `classify()` wraps everything in one `try/except Exception` so it never raises. `IntentResult` has **no** `return_to_flow` field — "is the user mid-flow?" is computed deterministically in `ConversationService` from `FlowState`, never guessed by the LLM.
 
-**Tech Stack:** Python 3.11, Pydantic v2, `InferenceRequest`/`InferenceResult` from `services.inference.models`, pytest
+**Tech Stack:** Python 3.11, Pydantic v2, `InferenceRequest` / `InferenceResult` / `InferenceError` from `services.inference.models`, `build_default_gateway` from `services`, pytest
 
-**Depends on:** Plan 1 must be complete (`FlowState` and `ChatProfileState` available in `services/chat/models.py`)
+**Depends on:** Plan 1 complete (`FlowState` + `ChatProfileState` available in `services/chat/models.py`).
+
+**Spec:** `docs/superpowers/specs/2026-05-30-phase1-intent-router-flow-state-design.md` (§1 IntentRouter Service)
 
 ---
 
-### Task 1: IntentResult Model
+### Task 1: IntentResult Model + IntentRouter skeleton
 
 **Files:**
 - Create: `services/chat/intent_router.py`
@@ -24,6 +26,7 @@ Create `tests/services/chat/test_intent_router.py`:
 
 ```python
 import pytest
+
 from services.chat.intent_router import IntentResult
 
 
@@ -32,20 +35,18 @@ def test_intent_result_defaults():
     assert result.route == "ADVISORY_FLOW"
     assert result.topic is None
     assert result.school is None
-    assert result.return_to_flow is False
 
 
 def test_intent_result_full():
-    result = IntentResult(
-        route="KNOWLEDGE_QA",
-        topic="tuition",
-        school="VNU-UET",
-        return_to_flow=True,
-    )
+    result = IntentResult(route="KNOWLEDGE_QA", topic="tuition", school="VNU-UET")
     assert result.route == "KNOWLEDGE_QA"
     assert result.topic == "tuition"
     assert result.school == "VNU-UET"
-    assert result.return_to_flow is True
+
+
+def test_intent_result_has_no_return_to_flow_field():
+    """return_to_flow was removed; it must not be a model field."""
+    assert "return_to_flow" not in IntentResult.model_fields
 
 
 def test_intent_result_rejects_invalid_route():
@@ -59,21 +60,17 @@ def test_intent_result_rejects_invalid_topic():
 
 
 def test_intent_result_model_validate_from_dict():
-    data = {"route": "OUT_OF_SCOPE"}
-    result = IntentResult.model_validate(data)
+    result = IntentResult.model_validate({"route": "OUT_OF_SCOPE"})
     assert result.route == "OUT_OF_SCOPE"
     assert result.topic is None
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-```
-pytest tests/services/chat/test_intent_router.py -v
-```
-
+Run: `pytest tests/services/chat/test_intent_router.py -v`
 Expected: `ModuleNotFoundError: No module named 'services.chat.intent_router'`
 
-- [ ] **Step 3: Create intent_router.py with IntentResult**
+- [ ] **Step 3: Create intent_router.py**
 
 Create `services/chat/intent_router.py`:
 
@@ -114,10 +111,8 @@ Quy tắc resolve đại từ:
 
 Chuẩn hóa tên trường thành viết tắt phổ biến nếu nhận ra: VNU-UET, HUST, NEU, VNU-HCMUS, UEH, FTU, ...
 
-return_to_flow: true nếu profile có bất kỳ dữ liệu nào (user đang trong luồng tư vấn dở chừng).
-
 Trả về JSON hợp lệ, không giải thích thêm:
-{"route": "...", "topic": "...", "school": "...", "return_to_flow": true/false}
+{"route": "...", "topic": "...", "school": "..."}
 """.strip()
 
 
@@ -137,7 +132,6 @@ class IntentResult(BaseModel):
         ]
     ] = None
     school: Optional[str] = None
-    return_to_flow: bool = False
 
 
 _FALLBACK = IntentResult(route="ADVISORY_FLOW")
@@ -149,6 +143,8 @@ class IntentRouter:
 
     def classify(self, message: str, profile_state: ChatProfileState) -> IntentResult:
         try:
+            if hasattr(self._gateway, "is_available") and not self._gateway.is_available():
+                return _FALLBACK
             result = self._gateway.run(
                 InferenceRequest(
                     agent_name="intent_router",
@@ -166,13 +162,6 @@ class IntentRouter:
             return _FALLBACK
 
     def _build_user_prompt(self, message: str, profile_state: ChatProfileState) -> str:
-        has_data = any([
-            profile_state.total_score,
-            profile_state.preferred_majors,
-            profile_state.preferred_schools,
-            profile_state.subject_combination,
-            profile_state.location_preference,
-        ])
         schools = (
             ", ".join(profile_state.preferred_schools)
             if profile_state.preferred_schools
@@ -185,43 +174,35 @@ class IntentRouter:
         )
         return (
             f'Tin nhắn: "{message}"\n\n'
-            f"Trường quan tâm: {schools}\n"
-            f"Ngành quan tâm: {majors}\n"
-            f"Điểm số: {profile_state.total_score or 'chưa có'}\n"
-            f"Khối thi: {profile_state.subject_combination or 'chưa có'}\n"
-            f"return_to_flow: {'true' if has_data else 'false'}"
+            f"Profile hiện tại:\n"
+            f"- Trường quan tâm: {schools}\n"
+            f"- Ngành quan tâm: {majors}\n"
+            f"- Điểm số: {profile_state.total_score or 'chưa có'}\n"
+            f"- Khối thi: {profile_state.subject_combination or 'chưa có'}"
         )
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-```
-pytest tests/services/chat/test_intent_router.py::test_intent_result_defaults \
-       tests/services/chat/test_intent_router.py::test_intent_result_full \
-       tests/services/chat/test_intent_router.py::test_intent_result_rejects_invalid_route \
-       tests/services/chat/test_intent_router.py::test_intent_result_rejects_invalid_topic \
-       tests/services/chat/test_intent_router.py::test_intent_result_model_validate_from_dict \
-       -v
-```
-
-Expected: 5 passed
+Run: `pytest tests/services/chat/test_intent_router.py -v`
+Expected: 6 passed
 
 - [ ] **Step 5: Commit**
 
-```
+```bash
 git add services/chat/intent_router.py tests/services/chat/test_intent_router.py
 git commit -m "feat: add IntentResult model and IntentRouter skeleton"
 ```
 
 ---
 
-### Task 2: User Prompt Builder
+### Task 2: User prompt builder tests
 
 **Files:**
 - Modify: `tests/services/chat/test_intent_router.py` (extend)
-- No changes to `services/chat/intent_router.py` — already written above
+- No change to `services/chat/intent_router.py` — `_build_user_prompt` is already implemented in Task 1.
 
-- [ ] **Step 1: Add failing tests for _build_user_prompt**
+- [ ] **Step 1: Add failing-then-passing tests for _build_user_prompt**
 
 Append to `tests/services/chat/test_intent_router.py`:
 
@@ -230,76 +211,64 @@ from services.chat.models import ChatProfileState
 from services.chat.intent_router import IntentRouter
 
 
-def _make_router():
-    """Router with a no-op gateway — only used for prompt building tests."""
-    return IntentRouter(gateway=None.__class__)  # gateway unused in these tests
+def _prompt_router():
+    """Router whose gateway is a dummy object — _build_user_prompt never touches it."""
+    return IntentRouter(gateway=object())
 
 
 def test_build_user_prompt_includes_message():
-    router = IntentRouter.__new__(IntentRouter)
-    profile = ChatProfileState()
-    prompt = router._build_user_prompt("học phí UET bao nhiêu", profile)
+    prompt = _prompt_router()._build_user_prompt("học phí UET bao nhiêu", ChatProfileState())
     assert "học phí UET bao nhiêu" in prompt
 
 
 def test_build_user_prompt_includes_preferred_schools():
-    router = IntentRouter.__new__(IntentRouter)
     profile = ChatProfileState(preferred_schools=["VNU-UET", "HUST"])
-    prompt = router._build_user_prompt("msg", profile)
+    prompt = _prompt_router()._build_user_prompt("msg", profile)
     assert "VNU-UET" in prompt
     assert "HUST" in prompt
 
 
-def test_build_user_prompt_shows_chua_co_when_no_schools():
-    router = IntentRouter.__new__(IntentRouter)
-    profile = ChatProfileState()
-    prompt = router._build_user_prompt("msg", profile)
+def test_build_user_prompt_shows_chua_co_when_empty():
+    prompt = _prompt_router()._build_user_prompt("msg", ChatProfileState())
     assert "chưa có" in prompt
 
 
-def test_build_user_prompt_return_to_flow_true_when_profile_has_data():
-    router = IntentRouter.__new__(IntentRouter)
-    profile = ChatProfileState(total_score=25.0)
-    prompt = router._build_user_prompt("msg", profile)
-    assert "return_to_flow: true" in prompt
+def test_build_user_prompt_includes_score_and_combination():
+    profile = ChatProfileState(total_score=25.0, subject_combination="A00")
+    prompt = _prompt_router()._build_user_prompt("msg", profile)
+    assert "25.0" in prompt
+    assert "A00" in prompt
 
 
-def test_build_user_prompt_return_to_flow_false_when_profile_empty():
-    router = IntentRouter.__new__(IntentRouter)
-    profile = ChatProfileState()
-    prompt = router._build_user_prompt("msg", profile)
-    assert "return_to_flow: false" in prompt
+def test_build_user_prompt_has_no_return_to_flow_line():
+    """return_to_flow was removed from the prompt — the LLM must not be asked to compute it."""
+    prompt = _prompt_router()._build_user_prompt("msg", ChatProfileState(total_score=25.0))
+    assert "return_to_flow" not in prompt
 ```
 
-- [ ] **Step 2: Run tests**
+- [ ] **Step 2: Run the prompt-builder tests**
 
-```
-pytest tests/services/chat/test_intent_router.py -k "prompt" -v
-```
-
-Expected: 5 passed (prompt builder already implemented in Task 1)
+Run: `pytest tests/services/chat/test_intent_router.py -k "prompt" -v`
+Expected: 5 passed
 
 - [ ] **Step 3: Commit**
 
-```
+```bash
 git add tests/services/chat/test_intent_router.py
 git commit -m "test: add user prompt builder tests for IntentRouter"
 ```
 
 ---
 
-### Task 3: classify() — Full 20 Test Cases
+### Task 3: classify() — FakeGateway + 21 route/failure cases
 
 **Files:**
 - Modify: `tests/services/chat/test_intent_router.py` (extend)
+- No change to `services/chat/intent_router.py`.
 
-The gateway mock pattern used throughout:
+This satisfies the spec's "≥ 20 cases covering 5 routes" requirement (5 advisory + 5 knowledge + 4 out-of-scope + 3 clarification + 4 failure/degraded = 21).
 
-```python
-# FakeGateway helper — defined once at top of the test additions
-```
-
-- [ ] **Step 1: Add FakeGateway helper and all 20 classify tests**
+- [ ] **Step 1: Add FakeGateway helper and all classify tests**
 
 Append to `tests/services/chat/test_intent_router.py`:
 
@@ -308,9 +277,13 @@ from services.inference.models import InferenceError, InferenceResult
 
 
 class FakeGateway:
-    def __init__(self, parsed_data=None, should_raise=False):
+    def __init__(self, parsed_data=None, should_raise=False, available=True):
         self._parsed_data = parsed_data
         self._should_raise = should_raise
+        self._available = available
+
+    def is_available(self):
+        return self._available
 
     def run(self, request):
         if self._should_raise:
@@ -324,187 +297,166 @@ class FakeGateway:
         )
 
 
-# --- ADVISORY_FLOW ---
+def _router(**kwargs):
+    return IntentRouter(gateway=FakeGateway(**kwargs))
+
+
+# --- ADVISORY_FLOW (5) ---
 
 def test_classify_advisory_basic():
-    gw = FakeGateway({"route": "ADVISORY_FLOW", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("25 điểm A00 nên chọn trường nào", ChatProfileState())
-    assert result.route == "ADVISORY_FLOW"
+    r = _router(parsed_data={"route": "ADVISORY_FLOW"})
+    assert r.classify("25 điểm A00 nên chọn trường nào", ChatProfileState()).route == "ADVISORY_FLOW"
 
 
-def test_classify_advisory_eligibility_question():
-    gw = FakeGateway({"route": "ADVISORY_FLOW", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("em có đậu NEU không", ChatProfileState())
-    assert result.route == "ADVISORY_FLOW"
+def test_classify_advisory_eligibility():
+    r = _router(parsed_data={"route": "ADVISORY_FLOW"})
+    assert r.classify("em có đậu NEU không", ChatProfileState()).route == "ADVISORY_FLOW"
 
 
 def test_classify_advisory_major_advice():
-    gw = FakeGateway({"route": "ADVISORY_FLOW", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("tư vấn ngành CNTT cho mình", ChatProfileState())
-    assert result.route == "ADVISORY_FLOW"
+    r = _router(parsed_data={"route": "ADVISORY_FLOW"})
+    assert r.classify("tư vấn ngành CNTT cho mình", ChatProfileState()).route == "ADVISORY_FLOW"
 
 
 def test_classify_advisory_score_combination():
-    gw = FakeGateway({"route": "ADVISORY_FLOW", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("điểm 28 khối B00 nên nộp đâu", ChatProfileState())
-    assert result.route == "ADVISORY_FLOW"
+    r = _router(parsed_data={"route": "ADVISORY_FLOW"})
+    assert r.classify("điểm 28 khối B00 nên nộp đâu", ChatProfileState()).route == "ADVISORY_FLOW"
 
 
 def test_classify_advisory_chance_question():
-    gw = FakeGateway({"route": "ADVISORY_FLOW", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("cơ hội đậu Bách Khoa của em là bao nhiêu", ChatProfileState())
-    assert result.route == "ADVISORY_FLOW"
+    r = _router(parsed_data={"route": "ADVISORY_FLOW"})
+    assert r.classify("cơ hội đậu Bách Khoa của em là bao nhiêu", ChatProfileState()).route == "ADVISORY_FLOW"
 
 
-# --- KNOWLEDGE_QA ---
+# --- KNOWLEDGE_QA (5) ---
 
 def test_classify_knowledge_tuition_with_school():
-    gw = FakeGateway({"route": "KNOWLEDGE_QA", "topic": "tuition", "school": "VNU-UET", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("học phí UET bao nhiêu", ChatProfileState())
+    r = _router(parsed_data={"route": "KNOWLEDGE_QA", "topic": "tuition", "school": "VNU-UET"})
+    result = r.classify("học phí UET bao nhiêu", ChatProfileState())
     assert result.route == "KNOWLEDGE_QA"
     assert result.topic == "tuition"
     assert result.school == "VNU-UET"
 
 
 def test_classify_knowledge_curriculum():
-    gw = FakeGateway({"route": "KNOWLEDGE_QA", "topic": "curriculum", "school": None, "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("chương trình CNTT gồm gì", ChatProfileState())
+    r = _router(parsed_data={"route": "KNOWLEDGE_QA", "topic": "curriculum", "school": None})
+    result = r.classify("chương trình CNTT gồm gì", ChatProfileState())
     assert result.route == "KNOWLEDGE_QA"
     assert result.topic == "curriculum"
 
 
 def test_classify_knowledge_scholarship():
-    gw = FakeGateway({"route": "KNOWLEDGE_QA", "topic": "scholarship", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("có học bổng không", ChatProfileState())
+    r = _router(parsed_data={"route": "KNOWLEDGE_QA", "topic": "scholarship"})
+    result = r.classify("có học bổng không", ChatProfileState())
     assert result.route == "KNOWLEDGE_QA"
     assert result.topic == "scholarship"
 
 
 def test_classify_knowledge_dormitory():
-    gw = FakeGateway({"route": "KNOWLEDGE_QA", "topic": "dormitory", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("ký túc xá thế nào", ChatProfileState())
+    r = _router(parsed_data={"route": "KNOWLEDGE_QA", "topic": "dormitory"})
+    result = r.classify("ký túc xá thế nào", ChatProfileState())
     assert result.route == "KNOWLEDGE_QA"
     assert result.topic == "dormitory"
 
 
 def test_classify_knowledge_pronoun_resolved_from_profile():
-    """'trường này' should be resolved using preferred_schools from profile."""
-    gw = FakeGateway({"route": "KNOWLEDGE_QA", "topic": "tuition", "school": "VNU-UET", "return_to_flow": True})
+    """'trường này' resolved to preferred_schools by the LLM; router passes it through."""
+    r = _router(parsed_data={"route": "KNOWLEDGE_QA", "topic": "tuition", "school": "VNU-UET"})
     profile = ChatProfileState(preferred_schools=["VNU-UET"])
-    router = IntentRouter(gateway=gw)
-    result = router.classify("trường này học phí bao nhiêu", profile)
+    result = r.classify("trường này học phí bao nhiêu", profile)
     assert result.route == "KNOWLEDGE_QA"
     assert result.school == "VNU-UET"
 
 
-def test_classify_knowledge_return_to_flow_true_when_profile_has_data():
-    gw = FakeGateway({"route": "KNOWLEDGE_QA", "topic": "tuition", "school": "HUST", "return_to_flow": True})
-    profile = ChatProfileState(total_score=27.0, preferred_schools=["HUST"])
-    router = IntentRouter(gateway=gw)
-    result = router.classify("học phí HUST bao nhiêu", profile)
-    assert result.return_to_flow is True
-
-
-# --- OUT_OF_SCOPE ---
+# --- OUT_OF_SCOPE (4) ---
 
 def test_classify_out_of_scope_weather():
-    gw = FakeGateway({"route": "OUT_OF_SCOPE", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("thời tiết hôm nay thế nào", ChatProfileState())
-    assert result.route == "OUT_OF_SCOPE"
+    r = _router(parsed_data={"route": "OUT_OF_SCOPE"})
+    assert r.classify("thời tiết hôm nay thế nào", ChatProfileState()).route == "OUT_OF_SCOPE"
 
 
 def test_classify_out_of_scope_joke():
-    gw = FakeGateway({"route": "OUT_OF_SCOPE", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("kể cho tôi nghe một câu chuyện cười", ChatProfileState())
-    assert result.route == "OUT_OF_SCOPE"
+    r = _router(parsed_data={"route": "OUT_OF_SCOPE"})
+    assert r.classify("kể cho tôi nghe một câu chuyện cười", ChatProfileState()).route == "OUT_OF_SCOPE"
 
 
 def test_classify_out_of_scope_coding_help():
-    gw = FakeGateway({"route": "OUT_OF_SCOPE", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("giúp tôi viết code Python", ChatProfileState())
-    assert result.route == "OUT_OF_SCOPE"
+    r = _router(parsed_data={"route": "OUT_OF_SCOPE"})
+    assert r.classify("giúp tôi viết code Python", ChatProfileState()).route == "OUT_OF_SCOPE"
 
 
 def test_classify_out_of_scope_food():
-    gw = FakeGateway({"route": "OUT_OF_SCOPE", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("hôm nay ăn gì ngon", ChatProfileState())
-    assert result.route == "OUT_OF_SCOPE"
+    r = _router(parsed_data={"route": "OUT_OF_SCOPE"})
+    assert r.classify("hôm nay ăn gì ngon", ChatProfileState()).route == "OUT_OF_SCOPE"
 
 
-# --- CLARIFICATION ---
+# --- CLARIFICATION (3) ---
 
 def test_classify_clarification_ambiguous_pronoun():
-    gw = FakeGateway({"route": "CLARIFICATION", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("thế còn cái đó thì sao", ChatProfileState())
-    assert result.route == "CLARIFICATION"
+    r = _router(parsed_data={"route": "CLARIFICATION"})
+    assert r.classify("thế còn cái đó thì sao", ChatProfileState()).route == "CLARIFICATION"
 
 
 def test_classify_clarification_vague():
-    gw = FakeGateway({"route": "CLARIFICATION", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("ý bạn là gì", ChatProfileState())
-    assert result.route == "CLARIFICATION"
+    r = _router(parsed_data={"route": "CLARIFICATION"})
+    assert r.classify("ý bạn là gì", ChatProfileState()).route == "CLARIFICATION"
 
 
-# --- ERROR FALLBACKS ---
+def test_classify_clarification_no_context():
+    r = _router(parsed_data={"route": "CLARIFICATION"})
+    assert r.classify("còn nữa không", ChatProfileState()).route == "CLARIFICATION"
 
-def test_classify_returns_advisory_fallback_on_inference_error():
-    gw = FakeGateway(should_raise=True)
-    router = IntentRouter(gateway=gw)
-    result = router.classify("bất kỳ câu gì", ChatProfileState())
+
+# --- FALLBACK / DEGRADED (4) ---
+
+def test_classify_fallback_on_inference_error():
+    result = _router(should_raise=True).classify("bất kỳ câu gì", ChatProfileState())
     assert result.route == "ADVISORY_FLOW"
     assert result.topic is None
     assert result.school is None
 
 
-def test_classify_returns_advisory_fallback_when_parsed_data_is_none():
-    gw = FakeGateway(parsed_data=None)
-    router = IntentRouter(gateway=gw)
-    result = router.classify("bất kỳ câu gì", ChatProfileState())
+def test_classify_fallback_when_parsed_data_is_none():
+    result = _router(parsed_data=None).classify("bất kỳ câu gì", ChatProfileState())
     assert result.route == "ADVISORY_FLOW"
 
 
-def test_classify_returns_advisory_fallback_on_invalid_route_in_response():
-    """LLM returns a route not in the Literal — Pydantic validation error → fallback."""
-    gw = FakeGateway({"route": "MADE_UP_ROUTE", "return_to_flow": False})
-    router = IntentRouter(gateway=gw)
-    result = router.classify("bất kỳ câu gì", ChatProfileState())
+def test_classify_fallback_on_invalid_route_in_response():
+    """LLM returns a route outside the Literal → validation error → fallback."""
+    result = _router(parsed_data={"route": "MADE_UP_ROUTE"}).classify("x", ChatProfileState())
+    assert result.route == "ADVISORY_FLOW"
+
+
+def test_classify_fallback_when_gateway_unavailable():
+    """is_available() false → skip the LLM call entirely, return fallback."""
+    result = _router(available=False, parsed_data={"route": "OUT_OF_SCOPE"}).classify("x", ChatProfileState())
     assert result.route == "ADVISORY_FLOW"
 ```
 
-- [ ] **Step 2: Run all tests to verify they pass**
+- [ ] **Step 2: Run all IntentRouter tests**
 
-```
-pytest tests/services/chat/test_intent_router.py -v
-```
+Run: `pytest tests/services/chat/test_intent_router.py -v`
+Expected: 32 passed (6 model + 5 prompt + 21 classify)
 
-Expected: ≥ 30 passed (5 model + 5 prompt + 20 classify)
+- [ ] **Step 3: Run the full suite for regressions**
 
-- [ ] **Step 3: Run full test suite for regressions**
-
-```
-pytest --tb=short -q
-```
-
+Run: `pytest --tb=short -q`
 Expected: all existing tests still pass
 
 - [ ] **Step 4: Commit**
 
-```
+```bash
 git add tests/services/chat/test_intent_router.py
-git commit -m "test: add 20 classify test cases for IntentRouter"
+git commit -m "test: add 21 classify cases for IntentRouter (5 routes + failure/degraded)"
 ```
+
+---
+
+## Plan 2 done — exit criteria
+
+- `IntentResult` has exactly `route`, `topic`, `school` — no `return_to_flow`.
+- `IntentRouter.classify` never raises: returns `ADVISORY_FLOW` on gateway-unavailable, inference error, empty `parsed_data`, or schema-invalid response.
+- The user prompt contains no `return_to_flow` instruction.
+- 32 tests pass; no regressions.
+
+**Next:** Plan 3 (ConversationService routing) depends on `IntentRouter` + `IntentResult`.
