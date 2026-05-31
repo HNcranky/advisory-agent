@@ -49,7 +49,7 @@ def _cursor(connection_factory, commit: bool = False):
 # SELECT column order shared by the read methods (id is selected separately).
 _CHUNK_COLUMNS = (
     "knowledge_document_id, school, program, year, document_type, "
-    "topic, chunk_text, source_url, span_start, span_end"
+    "topic, chunk_text, content_hash, source_url, span_start, span_end"
 )
 
 
@@ -63,8 +63,8 @@ class KnowledgeChunkRepository:
                 """
                 INSERT INTO knowledge_chunks
                     (knowledge_document_id, school, program, year, document_type,
-                     topic, chunk_text, embedding, source_url, span_start, span_end)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s::vector, %s, %s, %s)
+                     topic, chunk_text, content_hash, embedding, source_url, span_start, span_end)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::vector, %s, %s, %s)
                 ON CONFLICT (source_url, span_start, span_end) DO UPDATE SET
                     knowledge_document_id = EXCLUDED.knowledge_document_id,
                     school        = EXCLUDED.school,
@@ -73,6 +73,7 @@ class KnowledgeChunkRepository:
                     document_type = EXCLUDED.document_type,
                     topic         = EXCLUDED.topic,
                     chunk_text    = EXCLUDED.chunk_text,
+                    content_hash  = EXCLUDED.content_hash,
                     embedding     = EXCLUDED.embedding,
                     ingested_at   = NOW()
                 RETURNING id
@@ -85,6 +86,7 @@ class KnowledgeChunkRepository:
                     chunk.document_type,
                     chunk.topic,
                     chunk.chunk_text,
+                    chunk.content_hash,
                     _vector_literal(chunk.embedding),
                     chunk.source_url,
                     chunk.span_start,
@@ -104,9 +106,10 @@ class KnowledgeChunkRepository:
             document_type=row[5],
             topic=row[6],
             chunk_text=row[7],
-            source_url=row[8],
-            span_start=row[9],
-            span_end=row[10],
+            content_hash=row[8],
+            source_url=row[9],
+            span_start=row[10],
+            span_end=row[11],
         )
 
     def get_embedding_map_for_document(self, doc_id: int) -> dict[str, list[float]]:
@@ -121,6 +124,26 @@ class KnowledgeChunkRepository:
             chunk_content_hash(chunk_text): _parse_vector(embedding)
             for chunk_text, embedding in rows
         }
+
+    def get_embeddings_for_hashes(self, hashes) -> dict[str, list[float]]:
+        """Map content_hash -> embedding across the WHOLE corpus.
+
+        Cross-document reuse: identical chunk text appearing in any document
+        shares one embedding, so re-ingestion never re-embeds text already seen.
+        """
+        hashes = list(hashes)
+        if not hashes:
+            return {}
+        with _cursor(self.connection_factory) as cur:
+            cur.execute(
+                "SELECT DISTINCT ON (content_hash) content_hash, embedding "
+                "FROM knowledge_chunks "
+                "WHERE content_hash = ANY(%s) AND embedding IS NOT NULL "
+                "ORDER BY content_hash",
+                (hashes,),
+            )
+            rows = cur.fetchall()
+        return {h: _parse_vector(embedding) for h, embedding in rows}
 
     def delete_chunks_for_document(self, doc_id: int) -> int:
         with _cursor(self.connection_factory, commit=True) as cur:
@@ -154,10 +177,11 @@ class KnowledgeChunkRepository:
             document_type=row[5],
             topic=row[6],
             chunk_text=row[7],
-            source_url=row[8],
-            span_start=row[9],
-            span_end=row[10],
-            score=row[11],
+            content_hash=row[8],
+            source_url=row[9],
+            span_start=row[10],
+            span_end=row[11],
+            score=row[12],
         )
 
     def vector_search(self, embedding, school=None, topic=None, limit=5):

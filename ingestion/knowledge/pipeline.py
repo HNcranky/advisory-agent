@@ -58,15 +58,18 @@ class KnowledgePipeline:
             raw_text=text,
         ))
 
-        reuse = self.chunk_repo.get_embedding_map_for_document(doc_id)
         chunks = split_into_chunks(text)
+        hashes = [chunk_content_hash(c.chunk_text) for c in chunks]
+        # Corpus-wide reuse: identical chunk text in ANY document reuses its
+        # embedding, so re-ingestion never re-embeds text already seen.
+        reuse = self.chunk_repo.get_embeddings_for_hashes(hashes)
 
         embeddings: list = [None] * len(chunks)
         to_embed_idx: list[int] = []
         to_embed_text: list[str] = []
         reused = 0
         for i, c in enumerate(chunks):
-            h = chunk_content_hash(c.chunk_text)
+            h = hashes[i]
             if h in reuse:
                 embeddings[i] = reuse[h]
                 reused += 1
@@ -89,6 +92,7 @@ class KnowledgePipeline:
                 year=source.year,
                 document_type=source.document_type,
                 chunk_text=c.chunk_text,
+                content_hash=hashes[i],
                 embedding=embeddings[i],
                 source_url=source.source_url,
                 span_start=c.span_start,
