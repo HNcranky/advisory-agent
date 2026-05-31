@@ -8,6 +8,7 @@ from services.chat.profile_state_service import (
     merge_profile_state,
     missing_critical_slots,
     next_follow_up_question,
+    parse_pending_slot_answer,
 )
 from services.chat.repository import ChatSessionRepository
 from services.knowledge.qa_service import KnowledgeQAService
@@ -98,6 +99,13 @@ class ConversationService:
         pending_slot = pending[0]
 
         extracted = self.extract_profile(content)
+        # A bare reply ("29") to the question we just asked won't survive
+        # context-free extraction — there's no keyword tying it to the slot.
+        # Since we know the pending slot, parse the answer in that context.
+        if not getattr(extracted, pending_slot, None):
+            slot_value = parse_pending_slot_answer(pending_slot, content)
+            if slot_value is not None:
+                extracted = extracted.model_copy(update={pending_slot: slot_value})
         merged = merge_profile_state(profile_state, extracted, content)
         answered = bool(getattr(merged, pending_slot)) and (
             getattr(merged, pending_slot) != getattr(profile_state, pending_slot)
