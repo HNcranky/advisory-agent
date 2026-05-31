@@ -13,6 +13,11 @@ from dataclasses import dataclass
 from google import genai
 
 from ingestion.config.settings import GEMINI_KEY_COOLDOWN_SECONDS
+from services.inference.models import InferenceError
+from services.inference.providers.gemini_errors import (
+    is_rotatable_error,
+    parse_retry_delay,
+)
 
 
 @dataclass
@@ -104,6 +109,41 @@ class GeminiKeyPool:
                 self._cursor = self._keys.index(key_id)
             except ValueError:
                 pass
+
+    def call(self, fn, *, context: str = ""):
+        """Run fn(client) on a healthy key, rotating on key-specific failures.
+
+        Shared rotation loop for every Gemini SDK call site (provider,
+        embedder). On a rotatable error (429/auth/5xx) the key is cooled down
+        and the next healthy key retries the same fn. A non-rotatable error
+        (network, 4xx input) raises immediately without burning other keys.
+        Raises InferenceError if no key is configured or all are cooling down.
+        """
+        if not self._keys:
+            raise InferenceError("GEMINI_API_KEY is not configured")
+
+        last_exc = None
+        for _ in range(self.num_keys()):
+            handle = self.acquire()
+            if handle is None:  # every key is cooling down
+                break
+            try:
+                return fn(handle.client)
+            except Exception as exc:  # noqa: BLE001 - classify below
+                if is_rotatable_error(exc):
+                    self.penalize(handle.key_id, parse_retry_delay(exc))
+                    last_exc = exc
+                    continue
+                # Not key-specific: switching keys won't help. Keep this key
+                # first for the next request and surface the error.
+                self.release(handle.key_id)
+                raise InferenceError(
+                    f"Gemini API call failed{context}: {exc!r}"
+                ) from exc
+
+        raise InferenceError(
+            f"All Gemini API keys exhausted or cooling down{context}: {last_exc!r}"
+        )
 
 
 _POOL: GeminiKeyPool | None = None

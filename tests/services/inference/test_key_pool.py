@@ -1,5 +1,6 @@
 import pytest
 
+from services.inference.models import InferenceError
 from services.inference.providers import key_pool as key_pool_module
 from services.inference.providers.key_pool import (
     GeminiKeyPool,
@@ -7,6 +8,14 @@ from services.inference.providers.key_pool import (
     load_gemini_keys,
     reset_key_pool,
 )
+
+
+class _ApiErr(Exception):
+    """Mimics google.genai APIError: carries an int `code`."""
+
+    def __init__(self, code):
+        super().__init__(f"{code} error")
+        self.code = code
 
 
 class FakeClock:
@@ -136,6 +145,67 @@ def test_release_unknown_key_is_a_noop():
     pool.acquire()  # cursor at 1
     pool.release("nonexistent")  # should not raise or change cursor
     assert pool.acquire().key_id == "b"
+
+
+# --- call (shared rotation loop) ----------------------------------------------
+
+def test_call_returns_result_on_success():
+    pool = GeminiKeyPool(["k1"], client_factory=lambda k: k)
+    assert pool.call(lambda c: f"ok:{c}") == "ok:k1"
+
+
+def test_call_rotates_to_next_key_on_rotatable_error():
+    pool = GeminiKeyPool(["k1", "k2"], client_factory=lambda k: k)
+    seen = []
+
+    def fn(client):
+        seen.append(client)
+        if client == "k1":
+            raise _ApiErr(429)
+        return "done"
+
+    assert pool.call(fn) == "done"
+    assert seen == ["k1", "k2"]
+    assert pool.acquire().key_id == "k2"  # k1 penalized → skipped
+
+
+def test_call_raises_when_all_keys_rotatable_fail():
+    pool = GeminiKeyPool(["k1", "k2"], client_factory=lambda k: k)
+
+    def fn(client):
+        raise _ApiErr(429)
+
+    with pytest.raises(InferenceError, match="exhausted or cooling down"):
+        pool.call(fn)
+    assert pool.acquire() is None  # both penalized
+
+
+def test_call_non_rotatable_error_raises_and_keeps_cursor():
+    pool = GeminiKeyPool(["k1", "k2"], client_factory=lambda k: k)
+
+    def fn(client):
+        raise ValueError("network down")
+
+    with pytest.raises(InferenceError):
+        pool.call(fn)
+    # cursor restored: k1 stays first healthy, k2 untouched
+    assert pool.acquire().key_id == "k1"
+
+
+def test_call_no_keys_raises_inference_error():
+    pool = GeminiKeyPool([], client_factory=lambda k: k)
+    with pytest.raises(InferenceError, match="not configured"):
+        pool.call(lambda c: "x")
+
+
+def test_call_includes_context_in_exhausted_message():
+    pool = GeminiKeyPool(["k1"], client_factory=lambda k: k)
+
+    def fn(client):
+        raise _ApiErr(503)
+
+    with pytest.raises(InferenceError, match="embedding batch"):
+        pool.call(fn, context=" for embedding batch")
 
 
 # --- singleton ----------------------------------------------------------------
