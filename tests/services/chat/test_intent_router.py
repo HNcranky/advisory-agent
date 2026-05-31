@@ -27,9 +27,19 @@ def test_intent_result_rejects_invalid_route():
         IntentResult(route="INVALID_ROUTE")
 
 
-def test_intent_result_rejects_invalid_topic():
-    with pytest.raises(Exception):
-        IntentResult(route="KNOWLEDGE_QA", topic="invalid_topic")
+def test_intent_result_coerces_unknown_topic_to_none():
+    """An unknown topic is a secondary field — it must NOT invalidate the whole
+    classification (which would dump a correct KNOWLEDGE_QA into the fallback)."""
+    result = IntentResult(route="KNOWLEDGE_QA", topic="invalid_topic")
+    assert result.route == "KNOWLEDGE_QA"
+    assert result.topic is None
+
+
+def test_intent_result_normalizes_admission_methods_to_policy():
+    """LLM commonly emits 'admission_methods' for 'phương thức xét tuyển';
+    map it to the canonical admission_policy topic instead of dropping it."""
+    assert IntentResult(route="KNOWLEDGE_QA", topic="admission_methods").topic == "admission_policy"
+    assert IntentResult(route="KNOWLEDGE_QA", topic="admission_method").topic == "admission_policy"
 
 
 def test_intent_result_model_validate_from_dict():
@@ -163,6 +173,17 @@ def test_classify_knowledge_dormitory():
     assert result.topic == "dormitory"
 
 
+def test_classify_admission_methods_question_stays_knowledge_qa():
+    """Regression: LLM returns topic='admission_methods' (off the old enum).
+    Previously this raised a ValidationError and fell back to ADVISORY_FLOW,
+    misrouting a factual question into the advisory pipeline."""
+    r = _router(parsed_data={"route": "KNOWLEDGE_QA", "topic": "admission_methods", "school": "HUST"})
+    result = r.classify("có bao nhiêu phương thức xét tuyển của HUST", ChatProfileState())
+    assert result.route == "KNOWLEDGE_QA"
+    assert result.topic == "admission_policy"
+    assert result.school == "HUST"
+
+
 def test_classify_knowledge_pronoun_resolved_from_profile():
     """'trường này' resolved to preferred_schools by the LLM; router passes it through."""
     r = _router(parsed_data={"route": "KNOWLEDGE_QA", "topic": "tuition", "school": "VNU-UET"})
@@ -259,9 +280,13 @@ def test_intent_result_hybrid_full_payload():
     assert result.needs_advisory is True
 
 
-def test_intent_result_hybrid_rejects_invalid_topic_in_list():
-    with pytest.raises(Exception):
-        IntentResult.model_validate({"route": "HYBRID", "topics": ["not_a_topic"]})
+def test_intent_result_hybrid_filters_unknown_topics_in_list():
+    """Unknown topics are dropped from the list; known ones (incl. normalized
+    synonyms) are kept, so a HYBRID classification is never invalidated."""
+    result = IntentResult.model_validate(
+        {"route": "HYBRID", "topics": ["not_a_topic", "tuition", "admission_methods"]}
+    )
+    assert result.topics == ["tuition", "admission_policy"]
 
 
 def test_intent_result_singular_fields_still_work():
@@ -332,3 +357,9 @@ def test_intent_prompt_documents_conversational_route():
     assert "CONVERSATIONAL" in INTENT_SYSTEM_PROMPT
     assert "GREETING" in INTENT_SYSTEM_PROMPT
     assert "missing_fields" in INTENT_SYSTEM_PROMPT
+
+
+def test_intent_prompt_enumerates_topics_and_maps_admission_methods():
+    from services.chat.intent_router import INTENT_SYSTEM_PROMPT
+    assert "admission_policy" in INTENT_SYSTEM_PROMPT
+    assert "phương thức xét tuyển" in INTENT_SYSTEM_PROMPT
