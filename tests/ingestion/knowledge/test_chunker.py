@@ -50,6 +50,22 @@ def test_oversized_block_is_hard_split():
     assert all((c.span_end - c.span_start) <= 40 for c in chunks)
 
 
+def test_no_chunk_explosion_when_block_boundary_smaller_than_overlap():
+    """A short block (< overlap) before a long run must not trigger a
+    1-char-per-step death spiral. Count stays proportional to length."""
+    text = "A" * 50 + "\n\n" + "B" * 3000
+    chunks = split_into_chunks(text, size=1800, overlap=256)
+    assert len(chunks) < 20
+
+
+def test_chunk_count_proportional_to_text_length():
+    """~23k chars at size=1800/overlap=256 → stride ~1544 → ~15 chunks,
+    never thousands (regression for the overlap death-spiral)."""
+    text = "Một câu về tuyển sinh tài năng. " * 720  # ~23000 chars
+    chunks = split_into_chunks(text, size=1800, overlap=256)
+    assert len(chunks) <= 40
+
+
 def test_page_marker_is_preserved_in_chunk_text():
     text = "[Trang 1]\nHọc phí.\n\n[Trang 2]\nHọc bổng."
     chunks = split_into_chunks(text, size=1800, overlap=256)
