@@ -2,11 +2,7 @@ import json
 
 from google.genai import types
 
-from services.inference.models import InferenceError, InferenceResult
-from services.inference.providers.gemini_errors import (
-    is_rotatable_error,
-    parse_retry_delay,
-)
+from services.inference.models import InferenceResult
 from services.inference.providers.key_pool import GeminiKeyPool, get_key_pool
 
 
@@ -26,36 +22,16 @@ class GeminiProvider:
         return self._pool.has_keys()
 
     def generate(self, request, policy):
-        if not self._pool.has_keys():
-            raise InferenceError("GEMINI_API_KEY is not configured")
-
-        last_exc = None
-        for _ in range(self._pool.num_keys()):
-            handle = self._pool.acquire()
-            if handle is None:  # every key is cooling down
-                break
-            try:
-                response = self._call(handle.client, request, policy)
-            except Exception as exc:  # noqa: BLE001 - classify below
-                if is_rotatable_error(exc):
-                    # Key-specific failure (429/auth/5xx): cool it down and try
-                    # the next healthy key with this same request.
-                    self._pool.penalize(handle.key_id, parse_retry_delay(exc))
-                    last_exc = exc
-                    continue
-                # Not key-specific (network, 4xx input): switching keys won't help.
-                # Restore cursor so this key remains "first" for the next request.
-                self._pool.release(handle.key_id)
-                raise InferenceError(
-                    f"Gemini API call failed for agent={request.agent_name} "
-                    f"model={policy.primary_model}: {exc!r}"
-                ) from exc
-            return self._build_result(response, request, policy)
-
-        raise InferenceError(
-            f"All Gemini API keys exhausted or cooling down for "
-            f"agent={request.agent_name} model={policy.primary_model}: {last_exc!r}"
+        # Key rotation (429/auth/5xx → next key; exhausted → InferenceError) is
+        # handled uniformly by the shared pool loop.
+        context = (
+            f" for agent={request.agent_name} model={policy.primary_model}"
         )
+        response = self._pool.call(
+            lambda client: self._call(client, request, policy),
+            context=context,
+        )
+        return self._build_result(response, request, policy)
 
     @staticmethod
     def _call(client, request, policy):
