@@ -25,3 +25,10 @@ def test_load_env_file_keeps_existing_environment_values(tmp_path, monkeypatch):
     settings._load_env_file(env_file)
 
     assert settings.os.environ["GEMINI_API_KEY"] == "from-shell"
+
+
+def test_gemini_key_cooldown_seconds_default_is_positive_float():
+    from ingestion.config import settings
+
+    assert isinstance(settings.GEMINI_KEY_COOLDOWN_SECONDS, float)
+    assert settings.GEMINI_KEY_COOLDOWN_SECONDS > 0

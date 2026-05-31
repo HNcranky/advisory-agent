@@ -43,7 +43,14 @@ DB_CONFIG = {
                                                                   
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-                  
+# --- Multi-key rotation (services/inference) -----------------------------
+# Comma-separated extra keys, e.g. GEMINI_API_KEYS=key1,key2,key3. Combined with
+# GEMINI_API_KEY (deduped) by services.inference.providers.key_pool.load_gemini_keys().
+# When a key hits 429/auth/5xx it is "cooled down" for this many seconds (or the
+# 429 retryDelay if larger) before the rotator will try it again.
+GEMINI_KEY_COOLDOWN_SECONDS = float(os.getenv("GEMINI_KEY_COOLDOWN_SECONDS", 60))
+
+
 GEMINI_EXTRACTION_MODEL = os.getenv(
     "GEMINI_EXTRACTION_MODEL", "gemini-2.5-flash"
 )
