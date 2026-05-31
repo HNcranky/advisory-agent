@@ -627,3 +627,37 @@ def test_no_continuation_guard_when_not_in_advisory_flow():
     result = service.handle_user_message("tok", "mình lo cho kỳ thi năm 2026")
     # routed as conversational; admission_year not silently extracted off-flow
     assert "Mình hiểu cảm giác lo lắng" in result.assistant_message
+
+
+# --- slot-aware: bare number answers the pending total_score question ---
+
+def test_bare_number_reply_fills_pending_total_score_slot():
+    # User typed just "29" in reply to the score question. Context-free
+    # extraction yields nothing (no "diem" keyword), but the pending slot IS
+    # total_score, so a lone number in range must be accepted as the score.
+    profile = ChatProfileState(admission_year=2026)
+    flow = FlowState(active_flow="ADVISORY_FLOW", pending_question="Tong diem cua ban la bao nhieu?")
+    service, repo = _make_service(
+        profile=profile,
+        flow=flow,
+        extract=lambda text: StudentProfile(),
+    )
+
+    result = service.handle_user_message("tok", "29")
+
+    assert repo.profile_state.total_score == 29.0
+    assert result.profile_state.total_score == 29.0
+
+
+def test_bare_number_out_of_score_range_is_not_taken_as_total_score():
+    profile = ChatProfileState(admission_year=2026)
+    flow = FlowState(active_flow="ADVISORY_FLOW", pending_question="Tong diem cua ban la bao nhieu?")
+    service, repo = _make_service(
+        profile=profile,
+        flow=flow,
+        extract=lambda text: StudentProfile(),
+    )
+
+    result = service.handle_user_message("tok", "99")
+
+    assert repo.profile_state.total_score is None
