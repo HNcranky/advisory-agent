@@ -1,15 +1,15 @@
 [
   {
     "school": "HUST",
-    "source_url": "https://ts.hust.edu.vn/hoc-phi",
-    "document_type": "tuition_page",
-    "topic": "tuition"
+    "source_url": "https://www.hust.edu.vn/uploads/sys/tuyen-sinh/2026_03/qui-dinh-ve-xttn-nam-2026-ky.pdf",
+    "document_type": "handbook",
+    "topic": "admission_policy"
   },
   {
     "school": "HUST",
-    "source_url": "https://ts.hust.edu.vn/hoc-bong",
-    "document_type": "scholarship_policy",
-    "topic": "scholarship"
+    "source_url": "https://www.hust.edu.vn/uploads/sys/tuyen-sinh/2026_05/4740_qd-dhbk-qcts.pdf",
+    "document_type": "handbook",
+    "topic": "admission_policy"
   },
   {
     "school": "NEU",

@@ -7,14 +7,13 @@ from pydantic import ValidationError
 from ingestion.knowledge.registry.knowledge_registry import KnowledgeRegistry
 
 
-def test_default_seed_loads_three_schools_each_with_two_doc_types():
+def test_default_seed_loads_three_schools_each_with_sources():
     reg = KnowledgeRegistry()
     schools = reg.schools()
     assert set(schools) >= {"HUST", "NEU", "VNU-UET"}
     for school in ("HUST", "NEU", "VNU-UET"):
         sources = reg.get_sources_by_school(school)
-        doc_types = {s.document_type for s in sources}
-        assert len(doc_types) >= 2, f"{school} has < 2 document_types"
+        assert len(sources) >= 1, f"{school} has no sources"
 
 
 def test_all_sources_returns_models():
