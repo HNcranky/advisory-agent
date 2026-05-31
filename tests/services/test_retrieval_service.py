@@ -141,6 +141,49 @@ def test_retrieval_service_stays_deterministic_without_gateway_calls():
     assert filters["preferred_majors"] == ["computer_science"]
 
 
+from services.retrieval_service import _to_list as _retrieval_to_list
+
+
+def test_to_list_extracts_code_from_subject_combination_dicts():
+    """JSONB returns list of SubjectCombination dicts — must yield plain code strings."""
+    db_value = [
+        {"code": "A00", "subjects": ["Toán", "Vật lý", "Hóa học"], "description": "Toán, Lý, Hoá"},
+        {"code": "C00", "subjects": ["Ngữ văn", "Lịch sử", "Địa lý"], "description": "Văn, Sử, Địa"},
+    ]
+    assert _retrieval_to_list(db_value) == ["A00", "C00"]
+
+
+def test_fetch_candidates_subject_combinations_filterable_from_jsonb_dicts(monkeypatch):
+    """fetch_candidates must extract codes from JSONB-structured subject_combinations."""
+    monkeypatch.delenv("ADVISORY_MOCK_CONFLICTS", raising=False)
+    fake_rows = [
+        (
+            "vnu_uet",
+            "Dai hoc Cong nghe - DHQGHN",
+            2026,
+            "data_science",
+            "Khoa hoc du lieu",
+            "thpt_score",
+            [
+                {"code": "A00", "subjects": ["Toán", "Vật lý", "Hóa học"], "description": "Toán, Lý, Hoá"},
+                {"code": "C00", "subjects": ["Ngữ văn", "Lịch sử", "Địa lý"], "description": "Văn, Sử, Địa"},
+            ],
+            None, None, None,
+            "https://example.com",
+            5, 0.9,
+        )
+    ]
+
+    @contextmanager
+    def fake_get_cursor(commit=False):
+        yield _FakeCursor(fake_rows)
+
+    monkeypatch.setattr(retrieval_service, "get_cursor", fake_get_cursor)
+    candidates = retrieval_service.fetch_candidates({"admission_year": 2026})
+
+    assert candidates[0].subject_combinations == ["A00", "C00"]
+
+
 import logging
 
 

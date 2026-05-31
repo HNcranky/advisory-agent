@@ -30,16 +30,19 @@ def _to_list(value: Any) -> List[str]:
     if value is None:
         return []
     if isinstance(value, list):
-        return [str(item) for item in value]
-    if isinstance(value, str):
+        items = value
+    elif isinstance(value, str):
         try:
             loaded = json.loads(value)
             if isinstance(loaded, list):
-                return [str(item) for item in loaded]
+                items = loaded
+            else:
+                return [value]
         except json.JSONDecodeError:
-            pass
-        return [value]
-    return [str(value)]
+            return [value]
+    else:
+        return [str(value)]
+    return [item["code"] if isinstance(item, dict) and "code" in item else str(item) for item in items]
 
 
 def build_retrieval_filters(profile: StudentProfile, admission_year: int) -> Dict[str, Any]:
