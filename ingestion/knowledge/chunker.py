@@ -76,6 +76,12 @@ def split_into_chunks(
 
         if end >= n:
             break
-        start = max(end - overlap, start + 1)
+        next_start = end - overlap
+        if next_start <= start:
+            # The chunk was no larger than the overlap (a short block boundary
+            # or reused cut point). Overlapping would re-emit nearly the same
+            # text and crawl forward one char at a time, so skip past it.
+            next_start = end
+        start = next_start
 
     return chunks
