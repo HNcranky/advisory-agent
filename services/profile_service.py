@@ -39,6 +39,9 @@ SCHOOL_ALIASES = {
 
 
 def normalize_text(text: str) -> str:
+    # "đ"/"Đ" (U+0111/U+0110) have no NFKD decomposition, so an ascii-strip would
+    # drop them entirely ("điểm" -> "iem"). Map them to plain d/D first.
+    text = text.replace("đ", "d").replace("Đ", "D")
     normalized = unicodedata.normalize("NFKD", text)
     ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
     return " ".join(ascii_text.lower().split())

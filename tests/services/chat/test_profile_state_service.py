@@ -2,6 +2,7 @@ from agents.models import StudentProfile
 from services.chat.models import ChatProfileState
 from services.chat.profile_state_service import (
     merge_profile_state,
+    missing_critical_slots,
     next_follow_up_question,
 )
 
@@ -43,3 +44,27 @@ def test_merge_profile_state_returns_first_missing_slot_prompt():
         "location_preference",
     ]
     assert next_follow_up_question(merged) == "Bạn đang xét tuyển cho năm nào?"
+
+
+def test_missing_critical_slots_empty_profile_returns_all():
+    missing = missing_critical_slots(ChatProfileState())
+    assert "admission_year" in missing
+    assert "total_score" in missing
+    assert "preferred_majors" in missing
+    assert "location_preference" in missing
+
+
+def test_missing_critical_slots_complete_profile_returns_empty():
+    profile = ChatProfileState(
+        admission_year=2026,
+        total_score=25.0,
+        preferred_majors=["computer_science"],
+        location_preference="Ha Noi",
+    )
+    assert missing_critical_slots(profile) == []
+
+
+def test_missing_critical_slots_ignores_stale_missing_slots_field():
+    # missing_slots says empty, but the fields are actually empty → recompute wins.
+    profile = ChatProfileState(missing_slots=[])
+    assert "total_score" in missing_critical_slots(profile)

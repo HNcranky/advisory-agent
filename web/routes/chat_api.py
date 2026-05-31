@@ -1,7 +1,11 @@
+from functools import lru_cache
+
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
 from services.chat.conversation_service import ConversationService
+from services.chat.hybrid_dispatcher import HybridDispatcher
+from services.chat.intent_router import IntentResult
 from services.chat.run_dispatcher import RunDispatcher
 from services.chat.session_service import AnonymousSessionService
 from services.tracing.trace_service import TraceService
@@ -17,8 +21,15 @@ def get_session_service():
 def get_conversation_service():
     return ConversationService()
 
+# Singletons: each holds a ThreadPoolExecutor. Building a new one per request
+# leaked worker threads on every message that started a run.
+@lru_cache(maxsize=1)
 def get_run_dispatcher():
     return RunDispatcher()
+
+@lru_cache(maxsize=1)
+def get_hybrid_dispatcher():
+    return HybridDispatcher()
 
 def get_trace_service():
     return TraceService()
@@ -41,12 +52,22 @@ def post_message(session_token: str, payload: ChatMessageCreate):
     if result.should_start_run:
         repo = service.repository
         run_id = repo.create_run(session_token, result.profile_state)
-        get_run_dispatcher().submit(
-            session_token=session_token,
-            run_id=run_id,
-            latest_user_message=payload.content,
-            profile_state=result.profile_state,
-        )
+        if result.run_kind == "hybrid":
+            intent = IntentResult.model_validate(result.hybrid_intent or {"route": "HYBRID"})
+            get_hybrid_dispatcher().submit(
+                session_token=session_token,
+                run_id=run_id,
+                content=payload.content,
+                profile_state=result.profile_state,
+                intent=intent,
+            )
+        else:
+            get_run_dispatcher().submit(
+                session_token=session_token,
+                run_id=run_id,
+                latest_user_message=payload.content,
+                profile_state=result.profile_state,
+            )
     return result.model_dump()
 
 @router.get("/{session_token}/trace")

@@ -2,6 +2,8 @@ from typing import Any, Dict, Optional, List
 
 from pydantic import BaseModel, Field
 
+from services.knowledge.models import Citation
+
 
 class ChatSessionRecord(BaseModel):
     id: int
@@ -32,12 +34,19 @@ class ChatProfileState(BaseModel):
     constraints: List[str] = Field(default_factory=list)
     missing_slots: List[str] = Field(default_factory=list)
     
+class FlowState(BaseModel):
+    active_flow: Optional[str] = None       # "ADVISORY_FLOW" khi đang trong luồng tư vấn
+    pending_question: Optional[str] = None  # follow-up question cuối cùng đã hỏi user
+
 class ConversationTurnResult(BaseModel):
     session_status: str
     assistant_message: str
     should_start_run: bool = False
     profile_state: ChatProfileState
-    
+    citations: List[Citation] = Field(default_factory=list)
+    run_kind: str = "advisory"                      # "advisory" | "hybrid"
+    hybrid_intent: Optional[Dict[str, Any]] = None  # serialized IntentResult, replayed by HybridDispatcher
+
 class AdvisoryRunRecord(BaseModel):
     id: int
     session_token: str

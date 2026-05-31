@@ -120,3 +120,42 @@ def test_traced_swallows_repo_errors_and_still_runs_agent():
     result = wrapped(state)
 
     assert result.user_query == "ran-anyway"
+
+
+import logging
+
+from services.tracing.agent_tracer import traced
+
+
+class _NoopRepo:
+    def start_event(self, run_id, stage, sequence):
+        return 1
+
+    def complete_event(self, event_id, output_json):
+        return None
+
+    def fail_event(self, event_id, error_text):
+        return None
+
+
+class _State:
+    trace_run_id = "run-1"
+
+
+def test_traced_logs_when_extractor_raises(caplog):
+    def agent_fn(state):
+        return {"ok": True}
+
+    def bad_extractor(result, state):
+        raise ValueError("boom")
+
+    wrapped = traced("reason", 3, bad_extractor, repository=_NoopRepo())(agent_fn)
+
+    with caplog.at_level(logging.WARNING, logger="services.tracing.agent_tracer"):
+        result = wrapped(_State())
+
+    assert result == {"ok": True}
+    assert any(
+        "extractor" in record.message and "reason" in record.message
+        for record in caplog.records
+    )

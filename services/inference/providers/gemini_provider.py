@@ -1,29 +1,42 @@
 import json
-import os
 
-from google import genai
 from google.genai import types
 
 from services.inference.models import InferenceResult
+from services.inference.providers.key_pool import GeminiKeyPool, get_key_pool
 
 
 class GeminiProvider:
     provider_name = "gemini"
 
-    def __init__(self, api_key: str | None = None):
-        key = api_key or os.getenv("GEMINI_API_KEY", "")
-        self._client = genai.Client(api_key=key) if key else None
-        self._api_key_present = bool(key)
+    def __init__(self, api_key: str | None = None, *, pool=None, client_factory=None):
+        if pool is not None:
+            self._pool = pool
+        elif api_key is not None:
+            kwargs = {"client_factory": client_factory} if client_factory else {}
+            self._pool = GeminiKeyPool([api_key], **kwargs)
+        else:
+            self._pool = get_key_pool()
 
     def is_available(self) -> bool:
-        return self._api_key_present
+        return self._pool.has_keys()
 
     def generate(self, request, policy):
-        if not self._api_key_present:
-            raise RuntimeError("GEMINI_API_KEY is not configured")
+        # Key rotation (429/auth/5xx → next key; exhausted → InferenceError) is
+        # handled uniformly by the shared pool loop.
+        context = (
+            f" for agent={request.agent_name} model={policy.primary_model}"
+        )
+        response = self._pool.call(
+            lambda client: self._call(client, request, policy),
+            context=context,
+        )
+        return self._build_result(response, request, policy)
 
+    @staticmethod
+    def _call(client, request, policy):
         json_mode = request.output_mode == "json"
-        response = self._client.models.generate_content(
+        return client.models.generate_content(
             model=policy.primary_model,
             contents=request.user_prompt,
             config=types.GenerateContentConfig(
@@ -32,16 +45,25 @@ class GeminiProvider:
                 response_mime_type="application/json" if json_mode else None,
             ),
         )
+
+    def _build_result(self, response, request, policy):
         text = (getattr(response, "text", "") or "").strip()
-        if json_mode and not text:
-            raise RuntimeError(
-                f"Gemini returned empty text for agent={request.agent_name} in json mode"
+
+        def _result(**kwargs):
+            return InferenceResult(
+                agent_name=request.agent_name,
+                model=policy.primary_model,
+                provider=self.provider_name,
+                content=text,
+                **kwargs,
             )
-        parsed = json.loads(text) if json_mode else None
-        return InferenceResult(
-            agent_name=request.agent_name,
-            model=policy.primary_model,
-            provider=self.provider_name,
-            content=text,
-            parsed_data=parsed,
-        )
+
+        if request.output_mode != "json":
+            return _result()
+        if not text:
+            return _result(failure_type="STRUCTURE_FAILURE")
+        try:
+            parsed = json.loads(text)
+        except (ValueError, TypeError):
+            return _result(failure_type="STRUCTURE_FAILURE")
+        return _result(parsed_data=parsed)

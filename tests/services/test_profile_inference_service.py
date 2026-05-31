@@ -99,3 +99,20 @@ def test_build_profile_with_gateway_normalizes_natural_interests_to_related_majo
     assert "software_engineering" in profile.preferred_majors
     assert "data_science" in profile.preferred_majors
     assert "artificial_intelligence_uet" in profile.preferred_majors
+
+
+from services.inference.models import InferenceError
+
+
+class _RaisingGateway:
+    def is_available(self):
+        return True
+
+    def run(self, request):
+        raise InferenceError("boom")
+
+
+def test_build_profile_degrades_to_rule_based_on_inference_error():
+    profile = build_profile_with_gateway("Em duoc 27 diem khoi A00", _RaisingGateway())
+    # Rule-based fallback still extracts the score from the query.
+    assert profile.total_score == 27

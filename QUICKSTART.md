@@ -18,7 +18,7 @@ The script is idempotent — safe to re-run. Steps 1–4 below break down what i
 
 ## 1. Bring up the Postgres database (Docker)
 
-The repo ships with a `docker-compose.yml` that runs Postgres 16-alpine on `localhost:5432`. The Python app connects via `DB_CONFIG` in `ingestion/config/settings.py`, which defaults to the same host/port/credentials.
+The repo ships with a `docker-compose.yml` that runs `pgvector/pgvector:pg16` (Postgres 16 with the pgvector extension, required by the knowledge corpus) on `localhost:5432`. The Python app connects via `DB_CONFIG` in `ingestion/config/settings.py`, which defaults to the same host/port/credentials.
 
 ### First-time setup
 

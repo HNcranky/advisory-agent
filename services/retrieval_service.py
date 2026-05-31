@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from agents.models import CandidateProgram, Evidence, StudentProfile
@@ -7,6 +8,8 @@ from services.mock_retrieval import (
     build_mock_conflict_candidates,
     mock_conflicts_enabled,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _to_dict(value: Any) -> Optional[Dict[str, Any]]:
@@ -27,16 +30,19 @@ def _to_list(value: Any) -> List[str]:
     if value is None:
         return []
     if isinstance(value, list):
-        return [str(item) for item in value]
-    if isinstance(value, str):
+        items = value
+    elif isinstance(value, str):
         try:
             loaded = json.loads(value)
             if isinstance(loaded, list):
-                return [str(item) for item in loaded]
+                items = loaded
+            else:
+                return [value]
         except json.JSONDecodeError:
-            pass
-        return [value]
-    return [str(value)]
+            return [value]
+    else:
+        return [str(value)]
+    return [item["code"] if isinstance(item, dict) and "code" in item else str(item) for item in items]
 
 
 def build_retrieval_filters(profile: StudentProfile, admission_year: int) -> Dict[str, Any]:
@@ -51,6 +57,10 @@ def build_retrieval_filters(profile: StudentProfile, admission_year: int) -> Dic
 def fetch_candidates(filters: Dict[str, Any], limit: int = 100) -> List[CandidateProgram]:
     # ADVISORY_MOCK_CONFLICTS keeps local/demo conflict retrieval off the DB path.
     if mock_conflicts_enabled():
+        logger.warning(
+            "ADVISORY_MOCK_CONFLICTS is enabled: bypassing the database and "
+            "returning in-memory mock conflict candidates. Do NOT use in production."
+        )
         return build_mock_conflict_candidates(filters=filters, limit=limit)
 
     where_clauses: List[str] = ["admission_year = %s"]

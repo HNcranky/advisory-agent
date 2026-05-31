@@ -1,7 +1,7 @@
 from enum import Enum
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 import hashlib
 
 
@@ -45,9 +45,7 @@ class FetchResult(BaseModel):
     fetch_strategy_used: str = "http"
     fetch_duration_ms: int = 0
 
-    class Config:
-                           
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def compute_hash(self) -> str:
         """Compute SHA256 hash of raw_content."""

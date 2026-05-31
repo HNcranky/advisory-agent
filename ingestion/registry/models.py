@@ -3,7 +3,7 @@
 from enum import Enum
 from datetime import datetime
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class SourceType(str, Enum):
@@ -70,5 +70,4 @@ class SourceEntry(BaseModel):
         description="Extra config specific to this source"
     )
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)

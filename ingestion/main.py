@@ -24,6 +24,7 @@ sys.path.insert(0, str(project_root))
 
 from ingestion.pipeline.ingestion_pipeline import IngestionPipeline
 from ingestion.registry.source_registry import SourceRegistry
+from ingestion.storage.db_writer import save_canonical_records
 
                    
 logging.basicConfig(
@@ -123,6 +124,10 @@ def main():
     logger.info(f"\n{'='*60}")
     logger.info(f"Pipeline complete: {len(records)} normalized records")
     logger.info(f"{'='*60}")
+
+    if records:
+        saved = save_canonical_records(records)
+        logger.info(f"Saved/updated {saved} records in canonical_admission_records")
 
                
     output_data = []
