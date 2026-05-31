@@ -8,6 +8,7 @@ class KnowledgeChunk(BaseModel):
     year: int | None = None
     document_type: str | None = None
     chunk_text: str
+    content_hash: str | None = None
     embedding: list[float] | None = None
     source_url: str | None = None
     span_start: int | None = None

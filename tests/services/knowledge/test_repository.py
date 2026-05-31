@@ -75,11 +75,47 @@ def test_upsert_chunk_passes_null_embedding_as_none():
     assert None in params  # embedding literal is None → SQL NULL::vector
 
 
+def test_upsert_chunk_persists_content_hash():
+    connection = FakeConnection(fetchone_return=(1,))
+    repo = _repo(connection)
+
+    repo.upsert_chunk(KnowledgeChunk(
+        school="HUST", chunk_text="x", content_hash="deadbeef",
+        source_url="u", span_start=0, span_end=1,
+    ))
+
+    sql, params = connection.cursor_obj.statements[0]
+    assert "content_hash" in sql
+    assert "content_hash  = EXCLUDED.content_hash" in sql  # also updated on conflict
+    assert "deadbeef" in params
+
+
+def test_get_embeddings_for_hashes_returns_map_keyed_by_hash():
+    rows = [("h1", "[1.0,0.0]"), ("h2", "[0.0,1.0]")]
+    connection = FakeConnection(fetchall_return=rows)
+    repo = _repo(connection)
+
+    result = repo.get_embeddings_for_hashes(["h1", "h2"])
+
+    sql, params = connection.cursor_obj.statements[0]
+    assert "content_hash = ANY(%s)" in sql
+    assert "embedding IS NOT NULL" in sql
+    assert result == {"h1": [1.0, 0.0], "h2": [0.0, 1.0]}
+
+
+def test_get_embeddings_for_hashes_empty_makes_no_query():
+    connection = FakeConnection()
+    repo = _repo(connection)
+
+    assert repo.get_embeddings_for_hashes([]) == {}
+    assert connection.cursor_obj.statements == []
+
+
 def _chunk_row(id=1, school="VNU-UET", topic="tuition"):
     # Column order: id, knowledge_document_id, school, program, year,
-    # document_type, topic, chunk_text, source_url, span_start, span_end
+    # document_type, topic, chunk_text, content_hash, source_url, span_start, span_end
     return (id, None, school, None, None, "tuition_page", topic,
-            "chunk text", "http://uet/tuition", 0, 120)
+            "chunk text", "hashabc", "http://uet/tuition", 0, 120)
 
 
 def test_search_by_metadata_filters_school_only_when_topic_omitted():
@@ -109,8 +145,8 @@ def test_search_by_metadata_adds_topic_clause_when_given():
 
 
 def _scored_row(id=1, source_url="http://uet/tuition", score=0.91):
-    # _chunk_row columns + trailing score
-    return _chunk_row(id=id)[:8] + (source_url,) + _chunk_row(id=id)[9:] + (score,)
+    # _chunk_row columns + trailing score; source_url now at index 9 (after content_hash)
+    return _chunk_row(id=id)[:9] + (source_url,) + _chunk_row(id=id)[10:] + (score,)
 
 
 def test_vector_search_builds_cosine_query_with_filters():

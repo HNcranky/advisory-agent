@@ -45,8 +45,9 @@ class FakeChunkRepo:
         self.events = []
         self.upserts = []
 
-    def get_embedding_map_for_document(self, doc_id):
+    def get_embeddings_for_hashes(self, hashes):
         self.events.append("map")
+        self.queried_hashes = list(hashes)
         return dict(self.reuse_map)
 
     def delete_chunks_for_document(self, doc_id):
@@ -129,6 +130,29 @@ def test_changed_document_reuses_matching_chunk_embedding():
     assert result.chunks_embedded == 0
     assert embedder.calls == []                           # reused, not re-embedded
     assert chunk_repo.upserts[0].embedding == [0.5, 0.5, 0.5]
+
+
+def test_cross_document_reuse_keys_lookup_by_chunk_hash():
+    """Reuse map is fetched by chunk hashes (corpus-wide), and a hash present
+    from any document supplies the embedding without re-embedding."""
+    reuse = {chunk_content_hash(EXPECTED_CHUNK): [0.9, 0.1, 0.0]}
+    doc_repo, chunk_repo, embedder = FakeDocRepo(existing=None), FakeChunkRepo(reuse), FakeEmbedder()
+
+    result = _pipeline(doc_repo, chunk_repo, embedder, content_hash="NEW").run_for_source(SOURCE)
+
+    assert chunk_repo.queried_hashes == [chunk_content_hash(EXPECTED_CHUNK)]
+    assert result.chunks_reused == 1
+    assert embedder.calls == []
+    assert chunk_repo.upserts[0].embedding == [0.9, 0.1, 0.0]
+
+
+def test_upserted_chunk_carries_its_content_hash():
+    doc_repo, chunk_repo, embedder = FakeDocRepo(existing=None), FakeChunkRepo(), FakeEmbedder()
+
+    _pipeline(doc_repo, chunk_repo, embedder).run_for_source(SOURCE)
+
+    upserted = chunk_repo.upserts[0]
+    assert upserted.content_hash == chunk_content_hash(upserted.chunk_text)
 
 
 def test_old_chunks_deleted_before_new_upserts():
